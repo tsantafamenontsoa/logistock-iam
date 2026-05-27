@@ -18,12 +18,12 @@ echo "✅ LocalStack ready"
 # Create 6 IAM users (essential for TP2)
 echo "📝 Creating IAM users..."
 for user in alice bob charlie dave eve frank; do
-  awslocal iam create-user --user-name $user 2>/dev/null && echo "  ✓ $user"
+  /home/tsanta/.local/bin/awslocal iam create-user --user-name $user 2>/dev/null && echo "  ✓ $user"
 done
 
 # Create 1 bucket (essential for TP2)
 echo "📦 Creating S3 bucket..."
-awslocal s3 mb s3://logistock-data 2>/dev/null && echo "  ✓ logistock-data"
+/home/tsanta/.local/bin/awslocal s3 mb s3://logistock-data 2>/dev/null && echo "  ✓ logistock-data"
 
 echo ""
 echo "✅ LocalStack initialized in 30 seconds!"
