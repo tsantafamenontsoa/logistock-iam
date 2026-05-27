@@ -75,7 +75,7 @@ services:
     command: ["start-dev"]
 
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.0.0
     container_name: logistock_localstack
     environment:
       SERVICES: iam,s3,ec2,sts,kms
