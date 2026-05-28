@@ -486,32 +486,32 @@ cd logistock-iam</pre>
 </div>
 
   <div class="block tip">
-    <div class="block-header"><span class="block-icon">⚡</span> Lancer les services (30 secondes)</div>
+    <div class="block-header"><span class="block-icon">⚡</span> Étape 0 — Lancer Keycloak + PostgreSQL</div>
     <div class="block-body">
-      <p><strong>PowerShell (Windows) :</strong></p>
+      <p>Démarrez d'abord uniquement les deux services d'authentification et attendez qu'ils soient prêts :</p>
     </div>
   </div>
 
   <div class="code-block">
     <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam
+    <pre><span class="cm"># 1. Démarrer Keycloak + PostgreSQL</span>
+docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam
+
+<span class="cm"># 2. Attendre que Keycloak soit prêt (~45 secondes)</span>
+Write-Host "⏳ Attente démarrage Keycloak..." -ForegroundColor Yellow
 Start-Sleep -Seconds 45
-curl http://localhost:8080/realms/master</pre>
-  </div>
 
-  <div class="block-body" style="margin-top:1rem;">
-    <p><strong>Bash (Linux/macOS) :</strong></p>
-  </div>
-
-  <div class="code-block">
-    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam
-sleep 45
-curl http://localhost:8080/realms/master</pre>
+<span class="cm"># 3. Vérifier que Keycloak répond</span>
+$status = (Invoke-WebRequest -Uri "http://localhost:8080/realms/master" -UseBasicParsing).StatusCode
+if ($status -eq 200) {
+    Write-Host "✅ Keycloak prêt (HTTP $status)" -ForegroundColor Green
+} else {
+    Write-Host "❌ Keycloak pas encore prêt, attendre encore 20s" -ForegroundColor Red
+}</pre>
   </div>
 
   <div class="block checkpoint">
-    <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
+    <div class="block-header"><span class="block-icon">✅</span> Vérification Keycloak</div>
     <div class="block-body">
       <ul>
         <li>Accéder à <a href="http://localhost:8080" target="_blank">http://localhost:8080</a></li>
@@ -521,6 +521,7 @@ curl http://localhost:8080/realms/master</pre>
     </div>
   </div>
 
+  
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
     <svg viewBox="0 0 700 650" xmlns="http://www.w3.org/2000/svg" style="background:#f8f7f4; font-family: 'Inter', monospace;">
   <rect width="700" height="650" fill="#f8f7f4" rx="8"/>
@@ -608,42 +609,89 @@ curl http://localhost:8080/realms/master</pre>
 
  
 
-  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 0 : Obtenir un token admin (PowerShell)</h3>
-  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$tokenUrl = "http://localhost:8080/realms/master/protocol/openid-connect/token"
-$tokenBody = @{
-    client_id = "admin-cli"
-    username = "admin"
-    password = "logistockadmin"
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 1 : Créer le realm, les utilisateurs et les mots de passe</h3>
+  <div class="block tip"><div class="block-header"><span class="block-icon">💡</span> Script tout-en-un</div><div class="block-body"><p>Ce script fait les 4 opérations en séquence : token admin → realm logistock → 6 users avec mots de passe → attributs (email, prénom, nom). Il est idempotent : relancer ne crée pas de doublons.</p></div></div>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre><span class="cm"># ── 1. Token admin ──────────────────────────────────────────────────────────</span>
+$tokenUrl = "http://localhost:8080/realms/master/protocol/openid-connect/token"
+$body = @{
+    client_id  = "admin-cli"
+    username   = "admin"
+    password   = "logistockadmin"
     grant_type = "password"
 }
-$response = Invoke-WebRequest -Uri $tokenUrl -Method Post -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
+$response = Invoke-WebRequest -Uri $tokenUrl -Method Post -Body $body -UseBasicParsing
 $TOKEN = ($response.Content | ConvertFrom-Json).access_token
-Write-Host "✅ Token obtenu"</pre></div>
+Write-Host "✓ Token admin obtenu"
 
-  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 1 : Mettre à jour les utilisateurs (PowerShell)</h3>
-  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$users = @(
-  @{ username = "alice"; email = "alice@logistock.com"; firstName = "Alice"; lastName = "Martin" }
-  @{ username = "bob"; email = "bob@logistock.com"; firstName = "Bob"; lastName = "Dupont" }
-  @{ username = "charlie"; email = "charlie@logistock.com"; firstName = "Charlie"; lastName = "Lambert" }
-  @{ username = "dave"; email = "dave@logistock.com"; firstName = "Dave"; lastName = "Bernard" }
-  @{ username = "eve"; email = "eve@logistock.com"; firstName = "Eve"; lastName = "Dubois" }
-  @{ username = "frank"; email = "frank@logistock.com"; firstName = "Frank"; lastName = "Moreau" }
+<span class="cm"># ── 2. Créer le realm logistock ──────────────────────────────────────────────</span>
+$realmBody = @{
+    realm       = "logistock"
+    enabled     = $true
+    displayName = "LogiStock IAM"
+} | ConvertTo-Json
+
+try {
+    Invoke-WebRequest -Uri "http://localhost:8080/admin/realms" -Method Post `
+        -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+        -Body $realmBody -UseBasicParsing | Out-Null
+    Write-Host "✓ Realm 'logistock' créé"
+} catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 409) {
+        Write-Host "⚠ Realm 'logistock' existe déjà"
+    } else { throw }
+}
+
+<span class="cm"># ── 3. Créer les 6 utilisateurs avec mots de passe ───────────────────────────</span>
+$users = @("alice", "bob", "charlie", "dave", "eve", "frank")
+foreach ($username in $users) {
+    $userBody = @{
+        username    = $username
+        enabled     = $true
+        credentials = @(@{
+            type      = "password"
+            value     = "${username}123"
+            temporary = $false
+        })
+    } | ConvertTo-Json -Depth 3
+
+    try {
+        Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/users" -Method Post `
+            -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+            -Body $userBody -UseBasicParsing | Out-Null
+        Write-Host "✓ $username créé (mdp : ${username}123)"
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -eq 409) {
+            Write-Host "⚠ $username existe déjà"
+        } else { throw }
+    }
+}
+
+<span class="cm"># ── 4. Mettre à jour email, prénom, nom ──────────────────────────────────────</span>
+$details = @(
+    @{ username = "alice";   email = "alice@logistock.com";   firstName = "Alice";   lastName = "Martin" }
+    @{ username = "bob";     email = "bob@logistock.com";     firstName = "Bob";     lastName = "Dupont" }
+    @{ username = "charlie"; email = "charlie@logistock.com"; firstName = "Charlie"; lastName = "Lambert" }
+    @{ username = "dave";    email = "dave@logistock.com";    firstName = "Dave";    lastName = "Bernard" }
+    @{ username = "eve";     email = "eve@logistock.com";     firstName = "Eve";     lastName = "Dubois" }
+    @{ username = "frank";   email = "frank@logistock.com";   firstName = "Frank";   lastName = "Moreau" }
 )
 
-foreach ($user in $users) {
-    $userId = (Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/users?username=$($user.username)" `
-        -Headers @{ "Authorization" = "Bearer $TOKEN" } | ConvertFrom-Json)[0].id
+foreach ($u in $details) {
+    $userId = ((Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/users?username=$($u.username)" `
+        -Headers @{ Authorization = "Bearer $TOKEN" } -UseBasicParsing).Content | ConvertFrom-Json)[0].id
     $updateBody = @{
-        firstName = $user.firstName
-        lastName = $user.lastName
-        email = $user.email
+        firstName     = $u.firstName
+        lastName      = $u.lastName
+        email         = $u.email
         emailVerified = $true
     } | ConvertTo-Json
     Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/users/$userId" -Method Put `
-        -Headers @{ "Authorization" = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
-        -Body $updateBody | Out-Null
-    Write-Host "✅ Updated: $($user.username)"
-}</pre></div>
+        -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+        -Body $updateBody -UseBasicParsing | Out-Null
+    Write-Host "✅ $($u.username) — attributs mis à jour"
+}
+
+Write-Host "`n🎉 Realm + users prêts. Connectez-vous sur http://localhost:8080/realms/logistock/account avec alice/alice123"</pre></div>
 
   <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 2 : Créer les groupes (PowerShell)</h3>
   <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$groups = @("admins", "managers", "developers", "accountants", "viewers")
@@ -695,49 +743,68 @@ foreach ($roleName in $roles) {
 }</pre></div>
 
   <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 4 : Créer les clients OAuth2 (PowerShell)</h3>
-  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$clients = @(
-    @{ clientId = "logistock-web"; publicClient = $true; redirectUris = @("http://localhost:5000/*", "http://localhost:4180/*") }
-    @{ clientId = "logistock-api"; publicClient = $false; secret = "api-secret-change-me"; redirectUris = @("http://localhost:5001/*") }
-    @{ clientId = "logistock-admin"; publicClient = $false; secret = "admin-secret-change-me"; redirectUris = @("http://localhost:5002/*") }
-    @{ clientId = "logistock-proxy"; publicClient = $false; secret = "proxy-secret-change-me"; redirectUris = @("http://localhost:4180/oauth2/callback") }
+  <div class="block warning"><div class="block-header"><span class="block-icon">⚠️</span> Direct Access Grants — obligatoire pour les tests JWT</div><div class="block-body"><p>Le client <code>logistock-api</code> doit avoir <code>directAccessGrantsEnabled = $true</code> pour que le <em>password grant</em> fonctionne (test des tokens en PowerShell). Sans ce flag, Keycloak retourne <strong>400 Demande incorrecte</strong>.</p></div></div>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre><span class="cm"># Token admin (rafraîchir si l'Étape 1 a été lancée il y a plus de 5 min)</span>
+$TOKEN = ((Invoke-WebRequest -Uri "http://localhost:8080/realms/master/protocol/openid-connect/token" `
+    -Method Post -UseBasicParsing -Body @{
+        client_id="admin-cli"; username="admin"
+        password="logistockadmin"; grant_type="password"
+    }).Content | ConvertFrom-Json).access_token
+
+$clients = @(
+    @{
+        clientId                  = "logistock-web"
+        publicClient              = $true
+        directAccessGrantsEnabled = $false
+        redirectUris              = @("http://localhost:5000/*", "http://localhost:4180/*")
+        webOrigins                = @("http://localhost:5000")
+    }
+    @{
+        clientId                  = "logistock-api"
+        publicClient              = $false
+        secret                    = "api-secret-change-me"
+        directAccessGrantsEnabled = $true
+        redirectUris              = @("http://localhost:5001/*", "http://localhost:4181/*")
+        webOrigins                = @("http://localhost:5001")
+    }
+    @{
+        clientId                  = "logistock-admin"
+        publicClient              = $false
+        secret                    = "admin-secret-change-me"
+        directAccessGrantsEnabled = $false
+        redirectUris              = @("http://localhost:5002/*", "http://localhost:4182/*")
+        webOrigins                = @("http://localhost:5002")
+    }
+    @{
+        clientId                  = "logistock-proxy"
+        publicClient              = $false
+        secret                    = "proxy-secret-change-me"
+        directAccessGrantsEnabled = $false
+        redirectUris              = @(
+            "http://localhost:4180/oauth2/callback",
+            "http://localhost:4181/oauth2/callback",
+            "http://localhost:4182/oauth2/callback"
+        )
+    }
 )
 
 foreach ($client in $clients) {
     $clientBody = $client | ConvertTo-Json -Depth 3
     try {
         Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/clients" -Method Post `
-            -Headers @{ "Authorization" = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
-            -Body $clientBody | Out-Null
-        Write-Host "✅ Client: $($client.clientId)"
+            -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+            -Body $clientBody -UseBasicParsing | Out-Null
+        Write-Host "✅ Client créé : $($client.clientId)"
     } catch {
-        if ($_.Exception.Response.StatusCode -eq 409) {
-            Write-Host "⚠️ Client '$($client.clientId)' existe déjà" -ForegroundColor Yellow
+        if ($_.Exception.Response.StatusCode.value__ -eq 409) {
+            Write-Host "⚠ Client '$($client.clientId)' existe déjà"
         } else { throw }
     }
-}</pre></div>
+}
+Write-Host "`n✅ 4 clients créés — logistock-api a Direct Access Grants activé"</pre></div>
 
-  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 5 : Récupérer un token JWT (Password Grant)</h3>
-  <div class="block tip"><div class="block-header"><span class="block-icon">🔑</span> Activer Direct Access Grants</div><div class="block-body"><p>Pour utiliser le <code>grant_type=password</code>, il faut activer <strong>Direct Access Grants</strong> dans le client <code>logistock-api</code> (console Keycloak → Clients → logistock-api → Authentication Flow → Direct Access Grants = ON).</p></div></div>
-  <div class="code-block"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=password" \
-  -d "client_id=logistock-api" \
-  -d "client_secret=api-secret-change-me" \
-  -d "username=alice" \
-  -d "password=alice123" | jq</pre></div>
-  <div class="block checkpoint"><div class="block-header"><span class="block-icon">✅</span> Décoder le JWT</div><div class="block-body"><p>Copier l’<code>access_token</code> et le décoder sur <a href="https://jwt.io" target="_blank">jwt.io</a>. Vérifier les claims <code>sub</code>, <code>email</code>, <code>exp</code>, <code>realm_access.roles</code>.</p></div></div>
 
-  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 6 : Utiliser le Refresh Token</h3>
-  <div class="code-block"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>REFRESH_TOKEN="<votre_refresh_token>"
-curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=refresh_token" \
-  -d "client_id=logistock-api" \
-  -d "client_secret=api-secret-change-me" \
-  -d "refresh_token=$REFRESH_TOKEN" | jq</pre></div>
-
-  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 7 : Tester le SSO avec OAuth2 Proxy</h3>
-
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">Comment fonctionne le SSO ?</h3>
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
    <svg viewBox="0 0 700 500" xmlns="http://www.w3.org/2000/svg" style="background:#f8f7f4; font-family: 'Inter', monospace;">
   <rect width="700" height="500" fill="#f8f7f4" rx="8"/>
@@ -822,22 +889,6 @@ curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/tok
   </defs>
 </svg>
   </div>
-
-  <div class="block tip"><div class="block-header"><span class="block-icon">🌐</span> Configuration du proxy</div><div class="block-body"><p>Assurez-vous que la variable <code>OAUTH2_PROXY_OIDC_ISSUER_URL</code> dans le docker-compose pointe vers une URL accessible depuis votre navigateur (ex: <code>http://host.docker.internal:8080/realms/logistock</code> sur Windows/Mac, ou l’IP de l’hôte).</p></div></div>
-  
-  <div class="code-block"><div class="code-header"><span class="code-lang">yaml</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>oauth2-proxy:
-  environment:
-    OAUTH2_PROXY_OIDC_ISSUER_URL: "http://host.docker.internal:8080/realms/logistock"
-    OAUTH2_PROXY_UPSTREAMS: "http://logistock-web:80"   # ou plusieurs upstreams
-    # ...</pre></div>
-  <p><strong>Test simple :</strong></p>
-  <ol>
-    <li>Ouvrir <code>http://localhost:4180</code> → redirection Keycloak.</li>
-    <li>Se connecter avec <code>alice / alice123</code> (et MFA si activé).</li>
-    <li>Redirection vers <code>http://localhost:5000</code> (page nginx).</li>
-    <li>Ouvrir <code>http://localhost:5001</code> (API) – <strong>pas de nouveau login</strong> si l’API est aussi derrière un proxy (ou si vous utilisez le même token).</li>
-  </ol>
-  <p>Pour un SSO complet entre les 3 services, déployez trois proxys (web, api, admin) avec le même <code>COOKIE_SECRET</code> et des ports différents (4180,4181,4182).</p>
 
 <!-- ATTRIBUTION DES GROUPES AUX UTILISATEURS ET DES RÔLES AUX GROUPES -->
 <div class="block warning">
@@ -927,80 +978,269 @@ foreach ($groupName in $groupRoles.Keys) {
 Write-Host "`n✅ Tous les utilisateurs sont maintenant dans leurs groupes et les groupes ont leurs rôles."</pre>
 </div>
 
-<div class="block checkpoint">
-  <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
-  <div class="block-body">
-    <p>Pour confirmer que les rôles sont bien présents dans le JWT, reconnectez Alice et décodez son token :</p>
-    <pre style="background:#0f1117;color:#e2e8f0;padding:0.75rem;border-radius:6px;"># Obtenir un token pour Alice
-$body = @{
-    client_id = "logistock-api"
-    client_secret = "api-secret-change-me"
-    grant_type = "password"
-    username = "alice"
-    password = "alice123"
-}
-$token = (Invoke-WebRequest -Uri "http://localhost:8080/realms/logistock/protocol/openid-connect/token" -Method Post -Body $body | ConvertFrom-Json).access_token
-Write-Host $token</pre>
-    <p>Copiez le token et décodez-le sur <a href="https://jwt.io" target="_blank">jwt.io</a>. Le champ <code>realm_access.roles</code> doit contenir <code>["admin"]</code>.</p>
-  </div>
-</div>
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">Étape 5 : Vérifier et activer Direct Access Grants</h3>
+  <div class="block tip"><div class="block-header"><span class="block-icon">💡</span> À faire avant les tests JWT</div><div class="block-body"><p>Si l'Étape 4 a été exécutée avant la correction, <code>directAccessGrantsEnabled</code> peut être à <code>false</code>. Ce script vérifie l'état et l'active si nécessaire — sans recréer le client.</p></div></div>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre><span class="cm"># ─── Activer Direct Access Grants sur logistock-api ────────────────────</span>
+$TOKEN = ((Invoke-WebRequest -Uri "http://localhost:8080/realms/master/protocol/openid-connect/token" `
+    -Method Post -UseBasicParsing -Body @{
+        client_id  = "admin-cli"
+        username   = "admin"
+        password   = "logistockadmin"
+        grant_type = "password"
+    }).Content | ConvertFrom-Json).access_token
 
+<span class="cm"># Récupérer la config complète du client</span>
+$client = ((Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/clients?clientId=logistock-api" `
+    -Headers @{ Authorization = "Bearer $TOKEN" } -UseBasicParsing).Content | ConvertFrom-Json)[0]
 
-  <div class="block checkpoint"><div class="block-header"><span class="block-icon">✅</span> Livrables TP1</div><div class="block-body"><ul><li>Capture console Keycloak (6 users, 4 clients)</li><li>JWT décodé avec claims</li><li>Démonstration SSO : 1 login → 3 services accessibles (via proxys)</li><li>Test refresh token</li></ul></div></div>
+Write-Host "Avant : directAccessGrantsEnabled = $($client.directAccessGrantsEnabled)"
 
-  <div class="block warning"><div class="block-header"><span class="block-icon">🔧</span> Dépannage fréquent</div><div class="block-body"><ul><li><strong>400 Bad Request sur rôle :</strong> utiliser le script avec vérification d’existence et corps minimal.</li><li><strong>ERR_NAME_NOT_RESOLVED (keycloak) :</strong> modifier <code>OAUTH2_PROXY_OIDC_ISSUER_URL</code> avec <code>host.docker.internal</code> ou l’IP de l’hôte.</li><li><strong>Client not allowed for direct access grants :</strong> activer Direct Access Grants dans le client Keycloak.</li><li><strong>Refresh token invalide :</strong> il expire après 30 min, refaire un password grant.</li></ul></div></div>
-</div>
+<span class="cm"># Activer le flag et renvoyer la config complète</span>
+$client.directAccessGrantsEnabled = $true
+Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/clients/$($client.id)" `
+    -Method Put -UseBasicParsing `
+    -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+    -Body ($client | ConvertTo-Json -Depth 10) | Out-Null
 
+Write-Host "✅ Direct Access Grants activé sur logistock-api" -ForegroundColor Green</pre></div>
 
-  <p>Récupérer un token JWT en simulant le flow OAuth2 :</p>
+  <p>Tester les 6 utilisateurs — récupère le JWT et vérifie les rôles de chacun :</p>
 
   <div class="code-block">
-    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Option 1 : Password Grant (pour tests rapides)</span>
-curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=password" \
-  -d "client_id=logistock-api" \
-  -d "client_secret=api-secret-change-me" \
-  -d "username=alice" \
-  -d "password=alice123" \
-  | jq
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── Tester les 6 utilisateurs — JWT + rôles ───────────────────────────</span>
 
-<span class="cm"># Résultat attendu : access_token, refresh_token, expires_in</span></pre>
+$users = @(
+    @{ username = "alice";   password = "alice123" },
+    @{ username = "bob";     password = "bob123" },
+    @{ username = "charlie"; password = "charlie123" },
+    @{ username = "dave";    password = "dave123" },
+    @{ username = "eve";     password = "eve123" },
+    @{ username = "frank";   password = "frank123" }
+)
+
+$tokenUrl = "http://localhost:8080/realms/logistock/protocol/openid-connect/token"
+
+foreach ($user in $users) {
+    try {
+        $body = @{
+            client_id     = "logistock-api"
+            client_secret = "api-secret-change-me"
+            grant_type    = "password"
+            username      = $user.username
+            password      = $user.password
+        }
+        $response = Invoke-WebRequest -Uri $tokenUrl -Method Post -Body $body -UseBasicParsing
+        $json     = $response.Content | ConvertFrom-Json
+
+        <span class="cm"># Décoder le payload JWT (base64)</span>
+        $payload = $json.access_token.Split(".")[1]
+        $pad = 4 - ($payload.Length % 4); if ($pad -ne 4) { $payload += "=" * $pad }
+        $decoded = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($payload)) | ConvertFrom-Json
+
+        $roles  = ($decoded.realm_access.roles | Where-Object { $_ -notmatch "^default|^offline" }) -join ", "
+        $expiry = [System.DateTimeOffset]::FromUnixTimeSeconds($decoded.exp).LocalDateTime.ToString("HH:mm:ss")
+
+        Write-Host ""
+        Write-Host "  $($user.username)" -ForegroundColor Cyan -NoNewline
+        Write-Host "  (exp $expiry)"
+        Write-Host "    email  : $($decoded.email)"
+        Write-Host "    sub    : $($decoded.sub.Substring(0,8))..."
+        if ($roles) {
+            Write-Host "    roles  : $roles" -ForegroundColor Green
+        } else {
+            Write-Host "    roles  : (aucun role metier)" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  $($user.username) — ECHEC : $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+Write-Host ""
+Write-Host "Copiez un access_token ci-dessus et decodez-le sur jwt.io" -ForegroundColor Green</pre>
   </div>
 
   <div class="block checkpoint">
-    <div class="block-header"><span class="block-icon">✅</span> Décoder le JWT</div>
+    <div class="block-header"><span class="block-icon">✅</span> Décoder le JWT sur jwt.io</div>
     <div class="block-body">
-      <p>Copier l'<code>access_token</code> et le décoder sur <a href="https://jwt.io" target="_blank">jwt.io</a></p>
-      <p style="margin-top:0.75rem;"><strong>Claims importants :</strong></p>
+      <p>Copiez l'<code>access_token</code> d'Alice et collez-le sur <a href="https://jwt.io" target="_blank">jwt.io</a>.</p>
+      <p style="margin-top:0.75rem;"><strong>Claims attendus :</strong></p>
       <ul>
-        <li><code>sub</code> : ID utilisateur (alice-uuid)</li>
+        <li><code>sub</code> : UUID utilisateur (alice-…)</li>
         <li><code>email</code> : alice@logistock.com</li>
-        <li><code>realm_access.roles</code> : [] (vide pour l'instant, on ajoutera en TP4)</li>
-        <li><code>exp</code> : Expiration (5 min par défaut)</li>
+        <li><code>realm_access.roles</code> : <code>["admin"]</code></li>
+        <li><code>exp</code> : Expiration dans ~5 min</li>
         <li><code>iss</code> : http://localhost:8080/realms/logistock</li>
       </ul>
+      <p style="margin-top:.5rem;color:var(--sev-high);font-size:.85rem;">⚠️ Si <code>realm_access.roles</code> est vide, exécuter d'abord le script d'association groupes → rôles (section précédente).</p>
     </div>
   </div>
 
-  
+  <!-- ÉTAPE 6 : Comprendre les tokens -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 6 : Tester le Refresh Token (PowerShell)
+  </h3>
 
- 
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> Access Token vs Refresh Token</div>
+    <div class="block-body">
+      <p><strong>Access Token :</strong> durée courte (5-15 min) · contient les claims · stocké en mémoire (jamais localStorage).</p>
+      <p style="margin-top:.5rem;"><strong>Refresh Token :</strong> durée longue (1h-30j) · sert à renouveler l'access token · stocké en HttpOnly cookie · révocable.</p>
+    </div>
+  </div>
 
   <div class="code-block">
-    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Test SSO manuel (avec OAuth2 Proxy)</span>
-<span class="cm"># 1. Ouvrir http://localhost:4180 (Identity-Aware Proxy)</span>
-<span class="cm"># 2. Redirection automatique vers Keycloak login</span>
-<span class="cm"># 3. Se connecter : alice / alice123</span>
-<span class="cm"># 4. Redirection vers logistock-web (port 5000)</span>
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── Tester le Refresh Token ───────────────────────────────────────────</span>
 
-<span class="cm"># 5. Maintenant accéder http://localhost:5001 (API)</span>
-<span class="cm"># → Pas de re-login ! Session SSO active</span>
+<span class="cm"># 1. Obtenir access_token + refresh_token pour Alice</span>
+$body = @{
+    client_id     = "logistock-api"
+    client_secret = "api-secret-change-me"
+    grant_type    = "password"
+    username      = "alice"
+    password      = "alice123"
+}
+$first = (Invoke-WebRequest -Uri "http://localhost:8080/realms/logistock/protocol/openid-connect/token" `
+    -Method Post -Body $body -UseBasicParsing).Content | ConvertFrom-Json
 
-<span class="cm"># 6. Accéder http://localhost:5002 (Admin)</span>
-<span class="cm"># → Toujours pas de re-login !</span></pre>
+$REFRESH_TOKEN = $first.refresh_token
+Write-Host "  Access token  : expire dans $($first.expires_in)s"
+Write-Host "  Refresh token : expire dans $($first.refresh_expires_in)s"
+
+<span class="cm"># 2. Simuler l'expiration — attendre 10s</span>
+Write-Host ""; Write-Host "Attente 10s..." -ForegroundColor Yellow
+Start-Sleep -Seconds 10
+
+<span class="cm"># 3. Renouveler via le refresh_token</span>
+$refreshBody = @{
+    client_id     = "logistock-api"
+    client_secret = "api-secret-change-me"
+    grant_type    = "refresh_token"
+    refresh_token = $REFRESH_TOKEN
+}
+$second = (Invoke-WebRequest -Uri "http://localhost:8080/realms/logistock/protocol/openid-connect/token" `
+    -Method Post -Body $refreshBody -UseBasicParsing).Content | ConvertFrom-Json
+
+Write-Host "  Nouveau access token obtenu !" -ForegroundColor Green
+Write-Host "  Expire dans : $($second.expires_in)s"
+
+<span class="cm"># 4. Confirmer que le token a bien été renouvelé (tokens différents)</span>
+if ($first.access_token.Substring(0,20) -ne $second.access_token.Substring(0,20)) {
+    Write-Host "  Rotation confirmee : tokens distincts" -ForegroundColor Green
+} else {
+    Write-Host "  Tokens identiques — verifier config Keycloak" -ForegroundColor Yellow
+}</pre>
+  </div>
+
+  <!-- ÉTAPE 7 : Test SSO -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 7 : Tester le SSO — 1 login → 3 services
+  </h3>
+
+  <div class="block" style="background:var(--iam-purple-bg);border-color:var(--iam-purple);">
+    <div class="block-header" style="color:var(--iam-purple);"><span class="block-icon">⚡</span> Lancer tous les services SSO (pour le test final)</div>
+    <div class="block-body">
+      <p>Avant l'Étape 7 (test SSO), lancez les 6 services supplémentaires : les 3 proxys OAuth2 et les 3 applications Nginx :</p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Lancer les 3 proxys OAuth2 + les 3 apps Nginx en une seule commande</span>
+docker-compose -f docker-compose-iam.yml up -d `
+    oauth2-proxy `
+    oauth2-proxy-api `
+    oauth2-proxy-admin `
+    logistock-web `
+    logistock-api `
+    logistock-admin
+
+<span class="cm"># Attendre le démarrage des proxys (~20 secondes)</span>
+Write-Host "⏳ Démarrage des proxys..." -ForegroundColor Yellow
+Start-Sleep -Seconds 20
+
+<span class="cm"># Vérifier que les 3 proxys répondent</span>
+@(
+    @{ Name = "oauth2-proxy (web)";   Url = "http://localhost:4180/ping" },
+    @{ Name = "oauth2-proxy (api)";   Url = "http://localhost:4181/ping" },
+    @{ Name = "oauth2-proxy (admin)"; Url = "http://localhost:4182/ping" }
+) | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri $_.Url -UseBasicParsing -ErrorAction Stop
+        Write-Host "✅ $($_.Name) — HTTP $($r.StatusCode)" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ $($_.Name) — pas encore prêt" -ForegroundColor Red
+    }
+}
+
+<span class="cm"># Vérifier que les 3 apps Nginx répondent</span>
+@(
+    @{ Name = "logistock-web";   Url = "http://localhost:5000" },
+    @{ Name = "logistock-api";   Url = "http://localhost:5001" },
+    @{ Name = "logistock-admin"; Url = "http://localhost:5002" }
+) | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri $_.Url -UseBasicParsing -ErrorAction Stop
+        Write-Host "✅ $($_.Name) — HTTP $($r.StatusCode)" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠️  $($_.Name) — $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}</pre>
+  </div>
+
+  <div class="block warning">
+    <div class="block-header"><span class="block-icon">⚠️</span> Linux / macOS — remplacer host.docker.internal</div>
+    <div class="block-body">
+      <p>Sur Linux, <code>host.docker.internal</code> n'est pas résolu automatiquement. Avant de lancer les proxys, récupérez l'IP de l'hôte et modifiez le docker-compose :</p>
+      <pre style="background:#0f1117;color:#e2e8f0;padding:.75rem 1rem;border-radius:6px;font-size:.8rem;margin-top:.5rem;"># Trouver l'IP de l'hôte Docker
+ip route show default | awk '/default/ {print $3}'
+# Puis remplacer host.docker.internal par cette IP dans OAUTH2_PROXY_OIDC_ISSUER_URL</pre>
+    </div>
+  </div>
+
+
+  <div class="block warning" style="border-color:var(--iam-purple);background:var(--iam-purple-bg);">
+    <div class="block-header" style="color:var(--iam-purple);"><span class="block-icon">⚠️</span> Prérequis — Vérifier que les 6 services sont démarrés</div>
+    <div class="block-body">
+      <p>Les 3 proxys OAuth2 et les 3 apps Nginx doivent être actifs (commande <strong>Lancer tous les services SSO</strong> en début de TP).</p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── Vérifier que tous les services sont UP avant le test SSO ──────────</span>
+@(
+    @{ Name = "Keycloak";           Url = "http://localhost:8080/realms/master" },
+    @{ Name = "oauth2-proxy (web)"; Url = "http://localhost:4180/ping" },
+    @{ Name = "oauth2-proxy (api)"; Url = "http://localhost:4181/ping" },
+    @{ Name = "oauth2-proxy (adm)"; Url = "http://localhost:4182/ping" },
+    @{ Name = "logistock-web";      Url = "http://localhost:5000" },
+    @{ Name = "logistock-api";      Url = "http://localhost:5001" },
+    @{ Name = "logistock-admin";    Url = "http://localhost:5002" }
+) | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri $_.Url -UseBasicParsing -ErrorAction Stop
+        Write-Host "  $($_.Name) : OK (HTTP $($r.StatusCode))" -ForegroundColor Green
+    } catch {
+        Write-Host "  $($_.Name) : HORS LIGNE" -ForegroundColor Red
+    }
+}</pre>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🖥️</span> Étapes du test SSO — navigateur</div>
+    <div class="block-body">
+      <ol style="margin-left:1.2rem;line-height:2;">
+        <li><strong>Ouvrir une fenêtre de navigation privée</strong> (garantit une session vierge)</li>
+        <li>Aller sur <a href="http://localhost:4180" target="_blank"><code>http://localhost:4180</code></a> (proxy web) → redirection automatique vers Keycloak</li>
+        <li>Se connecter : <code>alice</code> / <code>alice123</code> — cliquer <em>Sign In</em></li>
+        <li>Keycloak redirige vers <code>http://localhost:5000</code> (logistock-web) → <strong>page nginx visible ✅</strong></li>
+        <li>Dans le <strong>même onglet</strong>, aller sur <a href="http://localhost:4181" target="_blank"><code>http://localhost:4181</code></a> (proxy api) → <strong>aucun login demandé ✅</strong></li>
+        <li>Aller sur <a href="http://localhost:4182" target="_blank"><code>http://localhost:4182</code></a> (proxy admin) → <strong>toujours sans login ✅</strong></li>
+        <li><strong>Tester le logout :</strong> aller sur <a href="http://localhost:4180/oauth2/sign_out" target="_blank"><code>http://localhost:4180/oauth2/sign_out</code></a></li>
+        <li>Retourner sur <code>http://localhost:4181</code> → la page de login Keycloak réapparaît → <strong>SSO logout confirmé ✅</strong></li>
+      </ol>
+    </div>
   </div>
 
   <div class="block checkpoint">
@@ -1008,54 +1248,11 @@ curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/tok
     <div class="block-body">
       <p><strong>Critères de réussite :</strong></p>
       <ul>
-        <li>✅ Alice se connecte UNE FOIS</li>
-        <li>✅ Accès aux 3 services (web, api, admin) sans re-login</li>
-        <li>✅ Logout sur un service = logout partout</li>
-      </ul>
-      <p style="margin-top:0.75rem;"><strong>💡 Tester le logout :</strong> Se déconnecter de 
-      http://localhost:4180/oauth2/sign_out → vérifier que l'accès à tous les services nécessite un re-login</p>
-    </div>
-  </div>
-
-  <!-- ÉTAPE 6 : Comprendre les tokens -->
-  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
-    Étape 6 : Access Token vs Refresh Token (10 min)
-  </h3>
-
-  <div class="block tip">
-    <div class="block-header"><span class="block-icon">📚</span> Théorie</div>
-    <div class="block-body">
-      <p><strong>Access Token :</strong></p>
-      <ul>
-        <li>Durée de vie courte (5-15 min)</li>
-        <li>Utilisé pour accéder aux ressources (API)</li>
-        <li>Contient les claims (user info, roles)</li>
-        <li>Stocké en mémoire (jamais en localStorage → risque XSS)</li>
-      </ul>
-      <p style="margin-top:0.75rem;"><strong>Refresh Token :</strong></p>
-      <ul>
-        <li>Durée de vie longue (1h-30 jours)</li>
-        <li>Utilisé pour obtenir un nouveau access token</li>
-        <li>Stocké en HttpOnly cookie (sécurisé)</li>
-        <li>Révocable (logout)</li>
+        <li>✅ Alice se connecte <strong>une seule fois</strong> (étape 3)</li>
+        <li>✅ Accès aux 3 services sans re-login (étapes 4, 5, 6)</li>
+        <li>✅ Logout global : déconnexion sur un service = déconnexion partout (étapes 7-8)</li>
       </ul>
     </div>
-  </div>
-
-  <div class="code-block">
-    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Utiliser le refresh token pour obtenir un nouveau access token</span>
-REFRESH_TOKEN="<votre_refresh_token>"
-
-curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=refresh_token" \
-  -d "client_id=logistock-api" \
-  -d "client_secret=api-secret-change-me" \
-  -d "refresh_token=$REFRESH_TOKEN" \
-  | jq
-
-<span class="cm"># Nouveau access_token + nouveau refresh_token</span></pre>
   </div>
 
   <div class="block checkpoint">
