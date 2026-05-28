@@ -290,7 +290,7 @@ cd logistock-iam</pre>
   </h3>
 
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
-    <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <rect width="800" height="600" fill="#f8f7f4"/>
       <text x="400" y="30" font-family="Syne, sans-serif" font-size="20" font-weight="700" fill="#1a1917" text-anchor="middle">Architecture LogiStock IAM</text>
       <rect x="50" y="60" width="700" height="120" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="8"/>
@@ -429,7 +429,7 @@ cd logistock-iam</pre>
 
   <!-- SVG Architecture -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;display:flex;align-items:center;justify-content:center;">
-    <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+    <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <defs>
         <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
           <polygon points="0 0, 10 3, 0 6" fill="#7c3aed"/>
@@ -521,9 +521,69 @@ if ($status -eq 200) {
     </div>
   </div>
 
-  
+  <div class="block" style="background:var(--iam-purple-bg);border-color:var(--iam-purple);">
+    <div class="block-header" style="color:var(--iam-purple);"><span class="block-icon">⚡</span> Lancer tous les services SSO (pour le test final)</div>
+    <div class="block-body">
+      <p>Avant l'Étape 7 (test SSO), lancez les 6 services supplémentaires : les 3 proxys OAuth2 et les 3 applications Nginx :</p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Lancer les 3 proxys OAuth2 + les 3 apps Nginx en une seule commande</span>
+docker-compose -f docker-compose-iam.yml up -d `
+    oauth2-proxy `
+    oauth2-proxy-api `
+    oauth2-proxy-admin `
+    logistock-web `
+    logistock-api `
+    logistock-admin
+
+<span class="cm"># Attendre le démarrage des proxys (~20 secondes)</span>
+Write-Host "⏳ Démarrage des proxys..." -ForegroundColor Yellow
+Start-Sleep -Seconds 20
+
+<span class="cm"># Vérifier que les 3 proxys répondent</span>
+@(
+    @{ Name = "oauth2-proxy (web)";   Url = "http://localhost:4180/ping" },
+    @{ Name = "oauth2-proxy (api)";   Url = "http://localhost:4181/ping" },
+    @{ Name = "oauth2-proxy (admin)"; Url = "http://localhost:4182/ping" }
+) | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri $_.Url -UseBasicParsing -ErrorAction Stop
+        Write-Host "✅ $($_.Name) — HTTP $($r.StatusCode)" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ $($_.Name) — pas encore prêt" -ForegroundColor Red
+    }
+}
+
+<span class="cm"># Vérifier que les 3 apps Nginx répondent</span>
+@(
+    @{ Name = "logistock-web";   Url = "http://localhost:5000" },
+    @{ Name = "logistock-api";   Url = "http://localhost:5001" },
+    @{ Name = "logistock-admin"; Url = "http://localhost:5002" }
+) | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri $_.Url -UseBasicParsing -ErrorAction Stop
+        Write-Host "✅ $($_.Name) — HTTP $($r.StatusCode)" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠️  $($_.Name) — $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}</pre>
+  </div>
+
+  <div class="block warning">
+    <div class="block-header"><span class="block-icon">⚠️</span> Linux / macOS — remplacer host.docker.internal</div>
+    <div class="block-body">
+      <p>Sur Linux, <code>host.docker.internal</code> n'est pas résolu automatiquement. Avant de lancer les proxys, récupérez l'IP de l'hôte et modifiez le docker-compose :</p>
+      <pre style="background:#0f1117;color:#e2e8f0;padding:.75rem 1rem;border-radius:6px;font-size:.8rem;margin-top:.5rem;"># Trouver l'IP de l'hôte Docker
+ip route show default | awk '/default/ {print $3}'
+# Puis remplacer host.docker.internal par cette IP dans OAUTH2_PROXY_OIDC_ISSUER_URL</pre>
+    </div>
+  </div>
+
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
-    <svg viewBox="0 0 700 650" xmlns="http://www.w3.org/2000/svg" style="background:#f8f7f4; font-family: 'Inter', monospace;">
+    <svg viewBox="0 0 700 650" xmlns="http://www.w3.org/2000/svg" style="background: #f8f7f4; font-family: ; max-width: 100%; height: auto; display: block"Inter', monospace;">
   <rect width="700" height="650" fill="#f8f7f4" rx="8"/>
   <text x="350" y="30" font-size="16" font-weight="bold" fill="#1a1917" text-anchor="middle">OAuth2 Authorization Code Flow</text>
 
@@ -806,7 +866,7 @@ Write-Host "`n✅ 4 clients créés — logistock-api a Direct Access Grants act
 
   <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">Comment fonctionne le SSO ?</h3>
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
-   <svg viewBox="0 0 700 500" xmlns="http://www.w3.org/2000/svg" style="background:#f8f7f4; font-family: 'Inter', monospace;">
+   <svg viewBox="0 0 700 500" xmlns="http://www.w3.org/2000/svg" style="background: #f8f7f4; font-family: ; max-width: 100%; height: auto; display: block"Inter', monospace;">
   <rect width="700" height="500" fill="#f8f7f4" rx="8"/>
   <text x="350" y="30" font-size="16" font-weight="bold" fill="#1a1917" text-anchor="middle">Single Sign-On (SSO) — 1 login → 3 services</text>
 
@@ -1137,68 +1197,6 @@ if ($first.access_token.Substring(0,20) -ne $second.access_token.Substring(0,20)
     Étape 7 : Tester le SSO — 1 login → 3 services
   </h3>
 
-  <div class="block" style="background:var(--iam-purple-bg);border-color:var(--iam-purple);">
-    <div class="block-header" style="color:var(--iam-purple);"><span class="block-icon">⚡</span> Lancer tous les services SSO (pour le test final)</div>
-    <div class="block-body">
-      <p>Avant l'Étape 7 (test SSO), lancez les 6 services supplémentaires : les 3 proxys OAuth2 et les 3 applications Nginx :</p>
-    </div>
-  </div>
-
-  <div class="code-block">
-    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Lancer les 3 proxys OAuth2 + les 3 apps Nginx en une seule commande</span>
-docker-compose -f docker-compose-iam.yml up -d `
-    oauth2-proxy `
-    oauth2-proxy-api `
-    oauth2-proxy-admin `
-    logistock-web `
-    logistock-api `
-    logistock-admin
-
-<span class="cm"># Attendre le démarrage des proxys (~20 secondes)</span>
-Write-Host "⏳ Démarrage des proxys..." -ForegroundColor Yellow
-Start-Sleep -Seconds 20
-
-<span class="cm"># Vérifier que les 3 proxys répondent</span>
-@(
-    @{ Name = "oauth2-proxy (web)";   Url = "http://localhost:4180/ping" },
-    @{ Name = "oauth2-proxy (api)";   Url = "http://localhost:4181/ping" },
-    @{ Name = "oauth2-proxy (admin)"; Url = "http://localhost:4182/ping" }
-) | ForEach-Object {
-    try {
-        $r = Invoke-WebRequest -Uri $_.Url -UseBasicParsing -ErrorAction Stop
-        Write-Host "✅ $($_.Name) — HTTP $($r.StatusCode)" -ForegroundColor Green
-    } catch {
-        Write-Host "❌ $($_.Name) — pas encore prêt" -ForegroundColor Red
-    }
-}
-
-<span class="cm"># Vérifier que les 3 apps Nginx répondent</span>
-@(
-    @{ Name = "logistock-web";   Url = "http://localhost:5000" },
-    @{ Name = "logistock-api";   Url = "http://localhost:5001" },
-    @{ Name = "logistock-admin"; Url = "http://localhost:5002" }
-) | ForEach-Object {
-    try {
-        $r = Invoke-WebRequest -Uri $_.Url -UseBasicParsing -ErrorAction Stop
-        Write-Host "✅ $($_.Name) — HTTP $($r.StatusCode)" -ForegroundColor Green
-    } catch {
-        Write-Host "⚠️  $($_.Name) — $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-}</pre>
-  </div>
-
-  <div class="block warning">
-    <div class="block-header"><span class="block-icon">⚠️</span> Linux / macOS — remplacer host.docker.internal</div>
-    <div class="block-body">
-      <p>Sur Linux, <code>host.docker.internal</code> n'est pas résolu automatiquement. Avant de lancer les proxys, récupérez l'IP de l'hôte et modifiez le docker-compose :</p>
-      <pre style="background:#0f1117;color:#e2e8f0;padding:.75rem 1rem;border-radius:6px;font-size:.8rem;margin-top:.5rem;"># Trouver l'IP de l'hôte Docker
-ip route show default | awk '/default/ {print $3}'
-# Puis remplacer host.docker.internal par cette IP dans OAUTH2_PROXY_OIDC_ISSUER_URL</pre>
-    </div>
-  </div>
-
-
   <div class="block warning" style="border-color:var(--iam-purple);background:var(--iam-purple-bg);">
     <div class="block-header" style="color:var(--iam-purple);"><span class="block-icon">⚠️</span> Prérequis — Vérifier que les 6 services sont démarrés</div>
     <div class="block-body">
@@ -1290,34 +1288,25 @@ ip route show default | awk '/default/ {print $3}'
   </div>
 
 </div>
-<!-- TRANSITION TP1 → TP2 -->
-<div class="block tip" style="background: var(--iam-purple-bg); border-left-color: var(--iam-purple); margin: 2rem 0;">
-  <div class="block-header">
-    <span class="block-icon">🔗</span>
-    <span>Du TP1 au TP2 – Authentification ≠ Autorisation</span>
-  </div>
-  <div class="block-body">
-    <p><strong>TP1 (Keycloak)</strong> : Alice s'authentifie → obtient un <strong>JWT</strong> (prouve son identité).<br>
-    Mais ce JWT ne dit pas si elle peut <em>lire un fichier S3</em> ou <em>lancer une instance EC2</em>.</p>
-    <p><strong>TP2 (AWS IAM)</strong> : C'est le moteur d'<strong>autorisation</strong> qui répond <em>« Alice a-t-elle le droit de faire cette action sur cette ressource ? »</em><br>
-    Keycloak et IAM <strong>ne se remplacent pas</strong> : ils sont <strong>complémentaires</strong> dans toute architecture IAM moderne.</p>
-    <p style="margin-top:0.75rem; font-style:italic;">🎯 Objectif du TP2 : attacher des politiques IAM aux utilisateurs LogiStock (via groupes) pour contrôler leur accès aux ressources AWS simulées par LocalStack.</p>
-  </div>
-</div>
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- TP2 : AWS IAM LOCALSTACK                                        -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- TP2 : AWS IAM LOCALSTACK                                        -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-
 <div class="section" id="tp2">
   <div class="section-header">
     <span class="section-number">TP2 · JOUR 1</span>
     <h2>AWS IAM avec LocalStack</h2>
     <span class="section-duration">1h30</span>
   </div>
+
+  <div class="block warning" style="border-color:#dc2626;background:#fef2f2;">
+    <div class="block-header" style="color:#dc2626;"><span class="block-icon">🚨</span> LocalStack Community — Limitation IAM importante</div>
+    <div class="block-body">
+      <p>La version gratuite de LocalStack (<code>localstack:3.0.0</code> dans notre docker-compose) <strong>n'applique pas les politiques IAM</strong>.</p>
+      <ul style="margin-top:.5rem;">
+        <li>Les opérations CRUD (créer users, groupes, politiques) <strong>fonctionnent</strong></li>
+        <li>L'<strong>enforcement</strong> des politiques (Access Denied) <strong>nécessite LocalStack Pro</strong> via <code>ENFORCE_IAM=1</code></li>
+      </ul>
+      <p style="margin-top:.75rem;">👉 Dans ce TP on <strong>observe d'abord</strong> le mode permissif, puis on active <code>ENFORCE_IAM=1</code> pour simuler le comportement strict. Les commandes CRUD fonctionnent dans les deux modes.</p>
+    </div>
+  </div>
+
 
   <!-- Transition depuis TP1 -->
   <div class="block tip" style="background: var(--iam-purple-bg); border-left-color: var(--iam-purple); margin: 2rem 0;">
@@ -1395,7 +1384,7 @@ ip route show default | awk '/default/ {print $3}'
     </div>
     <!-- SVG hierarchy (garder celui existant ou en mettre un simplifié) -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;">
-      <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
         <text x="200" y="25" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#1a1917" text-anchor="middle">AWS IAM Hierarchy</text>
         <rect x="50" y="50" width="300" height="70" fill="#fff8ed" stroke="#ff9900" stroke-width="2" rx="8"/>
         <text x="200" y="75" font-family="Syne, sans-serif" font-size="12" font-weight="700" fill="#b85c00" text-anchor="middle">USERS</text>
@@ -1416,7 +1405,7 @@ ip route show default | awk '/default/ {print $3}'
 
     <!-- Schéma récapitulatif AuthN/AuthZ -->
   <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1rem; margin:1.5rem 0;">
-    <svg viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto;">
+    <svg viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: auto; max-width: 100%; display: block">
       <rect width="600" height="150" fill="#f8f7f4" rx="8"/>
       <circle cx="60" cy="75" r="30" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
       <text x="60" y="80" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">Alice</text>
@@ -1512,11 +1501,6 @@ Write-Host "`n=== USERS ===" -ForegroundColor Cyan
 docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam list-users</pre>
   </div>
 
-  <div class="block exercise">
-    <div class="block-header"><span class="block-icon">2️⃣</span> Approche 2 — TP Bonus : Créez votre script</div>
-    <div class="block-body">
-      <p><strong>Défi :</strong> Écrivez un script PowerShell qui crée automatiquement users, groupes, bucket et associations.</p>
-    </div>
   </div>
   <div class="block checkpoint">
     <div class="block-header"><span class="block-icon">3️⃣</span> Approche 3 — Script fourni</div>
@@ -1620,8 +1604,7 @@ $policyJson = @'
   ]
 }
 '@
-$policyJsonEscaped = $policyJson -replace '"', '\"'
-$policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-policy --policy-name LogistockReadOnly --policy-document "$policyJsonEscaped"
+$policyJson | docker exec -i logistock_localstack sh -c 'awslocal iam create-policy --policy-name LogistockReadOnly --policy-document /dev/stdin'
 
 <span class="cm"># 3. Attacher la politique au groupe "accountants" et y mettre Eve</span>
 docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam attach-group-policy --group-name accountants --policy-arn arn:aws:iam::000000000000:policy/LogistockReadOnly
@@ -1662,7 +1645,7 @@ docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCES
 <div class="block tip">
   <div class="block-header"><span class="block-icon">🔧</span> Activer le mode strict IAM</div>
   <div class="block-body">
-    <p>Pour que LocalStack <strong>applique réellement les politiques</strong>, vous devez ajouter la variable d’environnement <code>IAM_SOFT_MODE=0</code> au conteneur LocalStack.</p>
+    <p>Pour que LocalStack <strong>applique réellement les politiques</strong>, vous devez ajouter la variable d’environnement <code>ENFORCE_IAM=1</code> au conteneur LocalStack.</p>
   </div>
 </div>
 
@@ -1672,7 +1655,7 @@ docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCES
 docker-compose -f docker-compose-iam.yml stop localstack
 
 <span class="cm"># 2. Ouvrir le fichier docker-compose-iam.yml avec un éditeur et, dans la section environment du service localstack, ajouter :</span>
-<span class="cm">#    IAM_SOFT_MODE: "0"</span>
+<span class="cm">#    ENFORCE_IAM: "1"</span>
 
 <span class="cm"># 3. Redémarrer LocalStack</span>
 docker-compose -f docker-compose-iam.yml up -d localstack
@@ -1699,8 +1682,8 @@ docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCES
   <div class="block-header"><span class="block-icon">✅</span> Conclusion</div>
   <div class="block-body">
     <ul>
-      <li>Le mode <strong>soft</strong> (<code>IAM_SOFT_MODE=1</code> par défaut) désactive le contrôle IAM – utile pour du prototypage rapide.</li>
-      <li>Le mode <strong>strict</strong> (<code>IAM_SOFT_MODE=0</code>) force le respect des politiques – <strong>indispensable en formation pour comprendre IAM</strong>.</li>
+      <li>Le mode <strong>soft</strong> (<code>ENFORCE_IAM=0</code> par défaut) désactive le contrôle IAM – utile pour du prototypage rapide.</li>
+      <li>Le mode <strong>strict</strong> (<code>ENFORCE_IAM=1</code>) force le respect des politiques – <strong>indispensable en formation pour comprendre IAM</strong>.</li>
       <li>Dans la suite du TP, nous travaillerons <strong>en mode strict</strong> pour que vos exercices de permissions aient du sens.</li>
     </ul>
   </div>
@@ -1743,16 +1726,11 @@ $policyJson = @'
 }
 '@
 
-<span class="cm"># 2. Échapper les guillemets doubles pour la ligne de commande</span>
-$policyJsonEscaped = $policyJson -replace '"', '\"'
+<span class="cm"># 2. Créer la politique — passer le JSON via stdin (/dev/stdin dans le conteneur)</span>
+$policyJson | docker exec -i logistock_localstack sh -c 'awslocal iam create-policy --policy-name LogistockS3ReadData --policy-document /dev/stdin'
 
-<span class="cm"># 3. Créer la politique dans AWS IAM (via stdin)</span>
-$policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-policy `
-  --policy-name LogistockS3ReadData `
-  --policy-document "$policyJsonEscaped"
-
-<span class="cm"># Résultat attendu : retour JSON avec PolicyName, Arn, etc.</span>
-<span class="cm"># Notez l'Arn : arn:aws:iam::000000000000:policy/LogistockS3ReadData</span></pre>
+<span class="cm"># Résultat attendu : JSON avec PolicyName, Arn, etc.</span>
+<span class="cm"># Notez l'Arn : arn:aws:iam::000000000000:policy/LogistockS3ReadData</span>
 </div>
 
 <div class="block tip">
@@ -1796,17 +1774,182 @@ $policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack
   </div>
 </div>
 
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 5bis : Créer la politique écriture + attacher les deux politiques aux groupes
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🗺️</span> Matrice groupes → politiques</div>
+    <div class="block-body">
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+        <thead>
+          <tr style="background:var(--surface-2);text-align:left;">
+            <th style="padding:.4rem .75rem;border:1px solid var(--border);">Groupe</th>
+            <th style="padding:.4rem .75rem;border:1px solid var(--border);">Users</th>
+            <th style="padding:.4rem .75rem;border:1px solid var(--border);">Politique</th>
+            <th style="padding:.4rem .75rem;border:1px solid var(--border);">Droits S3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:.4rem .75rem;border:1px solid var(--border);">admins</td><td style="padding:.4rem .75rem;border:1px solid var(--border);">alice</td><td style="padding:.4rem .75rem;border:1px solid var(--border);"><code>LogistockS3WriteData</code></td><td style="padding:.4rem .75rem;border:1px solid var(--border);">ListBucket + GetObject + PutObject + DeleteObject</td></tr>
+          <tr><td style="padding:.4rem .75rem;border:1px solid var(--border);">managers</td><td style="padding:.4rem .75rem;border:1px solid var(--border);">bob</td><td style="padding:.4rem .75rem;border:1px solid var(--border);"><code>LogistockS3WriteData</code></td><td style="padding:.4rem .75rem;border:1px solid var(--border);">ListBucket + GetObject + PutObject + DeleteObject</td></tr>
+          <tr><td style="padding:.4rem .75rem;border:1px solid var(--border);">developers</td><td style="padding:.4rem .75rem;border:1px solid var(--border);">charlie</td><td style="padding:.4rem .75rem;border:1px solid var(--border);"><code>LogistockS3ReadData</code></td><td style="padding:.4rem .75rem;border:1px solid var(--border);">ListBucket + GetObject</td></tr>
+          <tr><td style="padding:.4rem .75rem;border:1px solid var(--border);">accountants</td><td style="padding:.4rem .75rem;border:1px solid var(--border);">dave, eve</td><td style="padding:.4rem .75rem;border:1px solid var(--border);"><code>LogistockS3ReadData</code></td><td style="padding:.4rem .75rem;border:1px solid var(--border);">ListBucket + GetObject</td></tr>
+          <tr><td style="padding:.4rem .75rem;border:1px solid var(--border);">viewers</td><td style="padding:.4rem .75rem;border:1px solid var(--border);">frank</td><td style="padding:.4rem .75rem;border:1px solid var(--border);"><em>aucune</em></td><td style="padding:.4rem .75rem;border:1px solid var(--border);">❌ aucun accès</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── 1. Créer la politique écriture (admins + managers) ────────────────</span>
+$writePolicy = @'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListLogistockBuckets",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::logistock-data"
+    },
+    {
+      "Sid": "WriteLogistockObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::logistock-data/*"
+    }
+  ]
+}
+'@
+
+$writePolicy | docker exec -i logistock_localstack sh -c `
+    'awslocal iam create-policy --policy-name LogistockS3WriteData --policy-document /dev/stdin'
+
+Write-Host "✅ Politique LogistockS3WriteData créée" -ForegroundColor Green
+
+<span class="cm"># ─── 2. Récupérer les ARNs des deux politiques ─────────────────────────</span>
+$arnRead  = "arn:aws:iam::000000000000:policy/LogistockS3ReadData"
+$arnWrite = "arn:aws:iam::000000000000:policy/LogistockS3WriteData"
+
+<span class="cm"># ─── 3. Attacher les politiques aux groupes ────────────────────────────</span>
+$attachments = @(
+    @{ group = "admins";      arn = $arnWrite },
+    @{ group = "managers";    arn = $arnWrite },
+    @{ group = "developers";  arn = $arnRead  },
+    @{ group = "accountants"; arn = $arnRead  }
+    <span class="cm"># viewers → aucune politique (accès refusé par défaut)</span>
+)
+
+foreach ($a in $attachments) {
+    docker exec logistock_localstack awslocal iam attach-group-policy `
+        --group-name $a.group --policy-arn $a.arn | Out-Null
+    Write-Host "✅ $($a.group) → $($a.arn.Split('/')[-1])" -ForegroundColor Green
+}
+
+<span class="cm"># ─── 4. Vérifier les attachements ──────────────────────────────────────</span>
+Write-Host "`n── Vérification des politiques attachées ───────────────"
+foreach ($group in @("admins","managers","developers","accountants","viewers")) {
+    $attached = (docker exec logistock_localstack awslocal iam list-attached-group-policies `
+        --group-name $group | ConvertFrom-Json).AttachedPolicies.PolicyName -join ", "
+    $display = if ($attached) { $attached } else { "(aucune)" }
+    Write-Host "  $($group.PadRight(13)) → $display"
+}</pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Résultat attendu</div>
+    <div class="block-body">
+      <pre style="background:#0f1117;color:#e2e8f0;padding:.75rem 1rem;border-radius:6px;font-size:.82rem;">admins        → LogistockS3WriteData
+managers      → LogistockS3WriteData
+developers    → LogistockS3ReadData
+accountants   → LogistockS3ReadData
+viewers       → (aucune)</pre>
+      <p style="margin-top:.75rem;color:var(--sev-high);font-size:.85rem;">⚠️ Si une politique n'apparaît pas, vérifier qu'elle a bien été créée à l'Étape 5 et que l'ARN est correct (<code>000000000000</code> = account ID LocalStack).</p>
+    </div>
+  </div>
+
+
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 6 : Tester la matrice complète des permissions (20 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Objectif</div>
+    <div class="block-body">
+      <p>Vérifier que chaque user a exactement les droits de son groupe — ni plus, ni moins.</p>
+      <p style="margin-top:.5rem;font-size:.85rem;"><strong>Attendu :</strong> alice ✅ lecture+écriture | bob ✅ lecture+écriture | charlie ✅ lecture seule | dave ✅ lecture seule | eve ✅ lecture seule | frank ❌ aucun accès</p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── Matrice de permissions — tester les 6 users ───────────────────────</span>
+<span class="cm"># Pré-requis : ENFORCE_IAM=1 actif + policies attachées aux groupes</span>
+
+$exec = "docker exec -i logistock_localstack"
+
+<span class="cm"># Créer une clé d'accès pour chaque user et tester ses droits S3</span>
+$testUsers = @(
+    @{ name = "alice";   expectWrite = $true;  expectRead = $true  },
+    @{ name = "bob";     expectWrite = $true;  expectRead = $true  },
+    @{ name = "charlie"; expectWrite = $false; expectRead = $true  },
+    @{ name = "dave";    expectWrite = $false; expectRead = $true  },
+    @{ name = "eve";     expectWrite = $false; expectRead = $true  },
+    @{ name = "frank";   expectWrite = $false; expectRead = $false }
+)
+
+foreach ($u in $testUsers) {
+    <span class="cm"># Créer les clés d'accès</span>
+    $keys = (docker exec logistock_localstack awslocal iam create-access-key --user-name $u.name | ConvertFrom-Json).AccessKey
+    $ak = $keys.AccessKeyId; $sk = $keys.SecretAccessKey
+
+    <span class="cm"># Test lecture (ListBucket)</span>
+    $readOk = $false
+    try {
+        docker exec -e AWS_ACCESS_KEY_ID=$ak -e AWS_SECRET_ACCESS_KEY=$sk `
+            logistock_localstack awslocal s3 ls s3://logistock-data 2>&1 | Out-Null
+        $readOk = $true
+    } catch {}
+
+    <span class="cm"># Test écriture (PutObject)</span>
+    $writeOk = $false
+    try {
+        "test" | docker exec -i -e AWS_ACCESS_KEY_ID=$ak -e AWS_SECRET_ACCESS_KEY=$sk `
+            logistock_localstack sh -c 'awslocal s3 cp - s3://logistock-data/test.txt' 2>&1 | Out-Null
+        $writeOk = $true
+    } catch {}
+
+    <span class="cm"># Afficher le résultat vs attendu</span>
+    $readStatus  = if ($readOk  -eq $u.expectRead)  { "✅" } else { "❌" }
+    $writeStatus = if ($writeOk -eq $u.expectWrite) { "✅" } else { "❌" }
+    Write-Host "$readStatus $writeStatus  $($u.name.PadRight(8)) lecture=$readOk  écriture=$writeOk"
+}
+Write-Host ""
+Write-Host "✅ = résultat conforme à la politique  ❌ = écart détecté" -ForegroundColor Cyan</pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Checkpoint matrice</div>
+    <div class="block-body">
+      <p>Tous les ✅ ? La politique Least Privilege est correctement appliquée.</p>
+      <p style="margin-top:.5rem;">Un ❌ → vérifier l'attachement de la politique au groupe concerné avec :<br>
+      <code>docker exec logistock_localstack awslocal iam list-attached-group-policies --group-name &lt;groupe&gt;</code></p>
+    </div>
+  </div>
 
   <!-- Livrables -->
   <div class="block checkpoint">
     <div class="block-header"><span class="block-icon">✅</span> Livrables TP2</div>
     <div class="block-body">
       <ul>
-        <li>✅ Liste des 6 utilisateurs IAM</li>
-        <li>✅ Liste des 5 groupes + leurs membres</li>
-        <li>✅ Contenu JSON d'une politique custom (LogistockS3ReadData)</li>
-        <li>✅ Test permissions : Eve peut lire S3 mais pas écrire</li>
-        <li>✅ Screenshot erreur "AccessDenied" quand Eve essaie d'écrire</li>
+        <li>✅ Liste des 6 utilisateurs IAM + 5 groupes</li>
+        <li>✅ Politique JSON <code>LogistockS3ReadData</code> créée et attachée</li>
+        <li>✅ Mode <code>ENFORCE_IAM=1</code> activé — screenshot AccessDenied pour Frank</li>
+        <li>✅ Matrice de permissions : tous les users testés (✅/❌ par action)</li>
+        <li>✅ Eve peut lire S3 mais pas écrire — confirmé par le script matrice</li>
       </ul>
     </div>
   </div>
@@ -1875,26 +2018,47 @@ $policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack
     </div>
   </div>
 
-  <div class="code-block">
-    <div class="code-header"><span class="code-lang">keycloak</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Dans Keycloak console (realm logistock)</span>
-<span class="cm"># Menu : Authentication → Required Actions</span>
-
-<span class="cm"># 1. Activer "Configure OTP"</span>
-<span class="cm">#    → Enabled : ON</span>
-<span class="cm">#    → Default Action : ON (obligatoire au premier login)</span>
-
-<span class="cm"># 2. Menu : Authentication → Flows</span>
-<span class="cm">#    → Browser Flow</span>
-<span class="cm">#    → Dupliquer le flow (bouton Copy)</span>
-<span class="cm">#    → Nom : "Browser with MFA"</span>
-
-<span class="cm"># 3. Modifier le flow "Browser with MFA"</span>
-<span class="cm">#    → OTP Form : REQUIRED (pas conditional)</span>
-
-<span class="cm"># 4. Menu : Authentication → Bindings</span>
-<span class="cm">#    → Browser Flow : "Browser with MFA"</span></pre>
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🖥️</span> Étapes — Console Keycloak</div>
+    <div class="block-body">
+      <p>Sur <a href="http://localhost:8080" target="_blank">http://localhost:8080</a> → <code>admin / logistockadmin</code> → realm <strong>logistock</strong> :</p>
+      <ol style="margin-left:1.2rem;line-height:2.2;">
+        <li><strong>Authentication → Required Actions</strong><br>
+            Ligne <em>Configure OTP</em> → cocher <strong>Enabled</strong> et <strong>Default Action</strong></li>
+        <li><strong>Authentication → Flows</strong><br>
+            Sélectionner <em>Browser</em> → bouton <strong>Duplicate</strong> → nommer <code>Browser with MFA</code></li>
+        <li>Dans le flow dupliqué → <em>OTP Form</em> → passer à <strong>REQUIRED</strong></li>
+        <li><strong>Authentication → Bindings</strong><br>
+            Browser Flow → <strong>Browser with MFA</strong> → Save</li>
+      </ol>
+    </div>
   </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── Vérifier le binding MFA via l'API ─────────────────────────────────</span>
+$TOKEN = ((Invoke-WebRequest -Uri "http://localhost:8080/realms/master/protocol/openid-connect/token" `
+    -Method Post -UseBasicParsing -Body @{
+        client_id="admin-cli"; username="admin"
+        password="logistockadmin"; grant_type="password"
+    }).Content | ConvertFrom-Json).access_token
+
+$realm = ((Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock" `
+    -Headers @{ Authorization="Bearer $TOKEN" } -UseBasicParsing).Content | ConvertFrom-Json)
+
+if ($realm.browserFlow -eq "Browser with MFA") {
+    Write-Host "✅ browserFlow : $($realm.browserFlow)" -ForegroundColor Green
+} else {
+    Write-Host "⚠ browserFlow : $($realm.browserFlow) — vérifier l'étape 4" -ForegroundColor Yellow
+}
+
+<span class="cm"># Vérifier Configure OTP en Default Action</span>
+$actions = ((Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/authentication/required-actions" `
+    -Headers @{ Authorization="Bearer $TOKEN" } -UseBasicParsing).Content | ConvertFrom-Json)
+$otp = $actions | Where-Object { $_.alias -eq "CONFIGURE_TOTP" }
+Write-Host "Configure OTP — Enabled: $($otp.enabled) | DefaultAction: $($otp.defaultAction)"</pre>
+  </div>
+
 
   <div class="block checkpoint">
     <div class="block-header"><span class="block-icon">✅</span> Test MFA</div>
@@ -1914,6 +2078,132 @@ $policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack
     Partie 2 : Implémenter PKCE (45 min)
   </h3>
 
+  <svg viewBox="0 0 1000 720" xmlns="http://www.w3.org/2000/svg" style="background:#f8f7f4;font-family:Arial,sans-serif;max-width:100%;height:auto;display:block">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#555"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#059669"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <title>PKCE – Protection contre l’interception du code OAuth2</title>
+
+  <!-- Titre -->
+  <text x="500" y="40" font-size="20" font-weight="700" fill="#1a1917" text-anchor="middle">PKCE (RFC 7636) : Preuve de possession de clé pour échange de code</text>
+  <text x="500" y="65" font-size="13" fill="#6b6866" text-anchor="middle">Liaison entre la requête d’autorisation et l’échange du code – sans secret client</text>
+
+  <!-- ============================================================ -->
+  <!-- COLONNES : Attaquant / Application / Keycloak               -->
+  <!-- ============================================================ -->
+
+  <!-- Application (client public) -->
+  <rect x="350" y="100" width="200" height="50" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" filter="url(#shadow)"/>
+  <text x="450" y="120" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">🌐 Application</text>
+  <text x="450" y="137" font-size="10" fill="#2563eb" text-anchor="middle">Client public (SPA, mobile)</text>
+
+  <!-- Attaquant (Malicious) -->
+  <rect x="80" y="100" width="200" height="50" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+  <text x="180" y="120" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">👾 Attaquant</text>
+  <text x="180" y="137" font-size="10" fill="#dc2626" text-anchor="middle">Intercepte le code</text>
+
+  <!-- Keycloak (Authorization Server) -->
+  <rect x="680" y="100" width="240" height="50" rx="8" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
+  <text x="800" y="120" font-size="12" font-weight="700" fill="#5b21b6" text-anchor="middle">🔐 Keycloak</text>
+  <text x="800" y="137" font-size="10" fill="#7c3aed" text-anchor="middle">Authorization Server</text>
+
+  <!-- ============================================================ -->
+  <!-- ÉTAPE 1 : Génération du code_verifier et code_challenge      -->
+  <!-- ============================================================ -->
+
+  <text x="60" y="200" font-size="13" font-weight="700" fill="#1a1917">1️⃣ Avant redirection : l’application génère un secret éphémère</text>
+
+  <rect x="80" y="215" width="470" height="70" rx="6" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <text x="100" y="235" font-size="11" font-family="monospace" fill="#065f46">code_verifier = "x9K2pQ7mR8tL"</text>
+  <text x="100" y="255" font-size="11" font-family="monospace" fill="#065f46">code_challenge = SHA256(code_verifier) → "ABcDeFghIJkL"</text>
+  <text x="100" y="275" font-size="10" fill="#047857">✓ Le challenge est envoyé dans l’URL, le verifier reste secret côté app</text>
+
+  <!-- ============================================================ -->
+  <!-- ÉTAPE 2 : Requête d’autorisation avec code_challenge         -->
+  <!-- ============================================================ -->
+
+  <text x="60" y="320" font-size="13" font-weight="700" fill="#1a1917">2️⃣ Requête d’autorisation (code_challenge envoyé)</text>
+
+  <!-- Flèche App → Keycloak -->
+  <path d="M 450 380 L 680 380" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="565" y="370" font-size="10" fill="#1e40af" text-anchor="middle">GET /auth?code_challenge=ABcD...</text>
+
+  <!-- Attaquant intercepte -->
+  <path d="M 280 380 L 180 380" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="6,4" marker-end="url(#arrow-red)"/>
+  <text x="230" y="370" font-size="9" fill="#dc2626" text-anchor="middle">intercepte</text>
+  <rect x="110" y="395" width="140" height="35" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+  <text x="180" y="412" font-size="9" fill="#991b1b" text-anchor="middle">❌ L’attaquant voit</text>
+  <text x="180" y="424" font-size="9" fill="#991b1b" text-anchor="middle">le code_challenge</text>
+
+  <!-- Keycloak stocke challenge temporairement -->
+  <text x="800" y="410" font-size="10" fill="#6b21a8" text-anchor="middle">Keycloak stocke</text>
+  <text x="800" y="423" font-size="10" fill="#6b21a8" text-anchor="middle">code_challenge</text>
+
+  <!-- ============================================================ -->
+  <!-- ÉTAPE 3 : Redirection avec code (intercepté)                 -->
+  <!-- ============================================================ -->
+
+  <text x="60" y="470" font-size="13" font-weight="700" fill="#1a1917">3️⃣ Keycloak redirige avec le code d’autorisation</text>
+
+  <!-- Keycloak → App -->
+  <path d="M 680 495 L 450 495" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="565" y="488" font-size="10" fill="#5b21b6" text-anchor="middle">302 redirect /callback?code=XYZ123</text>
+
+  <!-- Attaquant intercepte le code -->
+  <path d="M 450 510 L 250 510" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="6,4" marker-end="url(#arrow-red)"/>
+  <text x="350" y="525" font-size="9" fill="#dc2626" text-anchor="middle">intercepte le code</text>
+
+  <!-- ============================================================ -->
+  <!-- ÉTAPE 4 : Échange du code (AVEC PKCE)                        -->
+  <!-- ============================================================ -->
+
+  <text x="60" y="570" font-size="13" font-weight="700" fill="#1a1917">4️⃣ Échange du code → l’application renvoie le code_verifier</text>
+
+  <!-- App → Keycloak (légitime) -->
+  <path d="M 450 600 L 680 600" stroke="#059669" stroke-width="3" marker-end="url(#arrow-green)"/>
+  <text x="565" y="593" font-size="10" fill="#059669" text-anchor="middle">POST /token + code + code_verifier</text>
+
+  <!-- Keycloak vérifie -->
+  <rect x="680" y="620" width="200" height="40" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="780" y="637" font-size="10" fill="#5b21b6" text-anchor="middle">🔍 Vérifie :</text>
+  <text x="780" y="653" font-size="9" fill="#7c3aed" text-anchor="middle">SHA256(code_verifier) == code_challenge ?</text>
+
+  <!-- ============================================================ -->
+  <!-- RÉSULTAT : L’attaquant ne peut pas échanger                  -->
+  <!-- ============================================================ -->
+
+  <!-- Tentative de l’attaquant -->
+  <text x="120" y="660" font-size="11" fill="#dc2626" font-weight="700">Tentative de l’attaquant :</text>
+  <rect x="80" y="670" width="220" height="35" rx="5" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="190" y="688" font-size="10" fill="#991b1b" text-anchor="middle">❌ POST /token + code seul</text>
+  <text x="190" y="702" font-size="9" fill="#dc2626" text-anchor="middle">(il ne connaît pas le code_verifier)</text>
+
+  <!-- Flèche vers Keycloak (échec) -->
+  <path d="M 300 687 L 680 687" stroke="#dc2626" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-red)"/>
+  <text x="490" y="680" font-size="9" fill="#dc2626" text-anchor="middle">Keycloak → invalid_grant</text>
+
+  <!-- ============================================================ -->
+  <!-- LÉGENDE FINALE                                               -->
+  <!-- ============================================================ -->
+
+  <rect x="80" y="720" width="840" height="60" rx="6" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="500" y="740" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">✅ PKCE vérifie que le détenteur du code est bien celui qui a initié la demande</text>
+  <text x="500" y="758" font-size="11" fill="#b45309" text-anchor="middle">Même si l’attaquant intercepte le code, il ne peut pas l’échanger sans le code_verifier (jamais transmis dans l’URL)</text>
+
+</svg>
+
   <div class="block tip">
     <div class="block-header"><span class="block-icon">📚</span> Qu'est-ce que PKCE ?</div>
     <div class="block-body">
@@ -1926,37 +2216,66 @@ $policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack
     </div>
   </div>
 
-  <div class="code-block">
-    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Générer code_verifier et code_challenge</span>
-CODE_VERIFIER=$(openssl rand -base64 32 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
-CODE_CHALLENGE=$(echo -n "$CODE_VERIFIER" | openssl dgst -sha256 -binary | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
-
-echo "Code Verifier: $CODE_VERIFIER"
-echo "Code Challenge: $CODE_CHALLENGE"
-
-<span class="cm"># 1. Authorization Request (avec PKCE)</span>
-<span class="cm"># Ouvrir dans un navigateur :</span>
-http://localhost:8080/realms/logistock/protocol/openid-connect/auth?\
-client_id=logistock-web&\
-response_type=code&\
-redirect_uri=http://localhost:5000/callback&\
-code_challenge=$CODE_CHALLENGE&\
-code_challenge_method=S256
-
-<span class="cm"># 2. Après login, récupérer le code dans l'URL de redirection</span>
-<span class="cm"># http://localhost:5000/callback?code=XXXX</span>
-
-<span class="cm"># 3. Échanger le code contre un token (avec code_verifier)</span>
-curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=authorization_code" \
-  -d "client_id=logistock-web" \
-  -d "code=XXXX" \
-  -d "redirect_uri=http://localhost:5000/callback" \
-  -d "code_verifier=$CODE_VERIFIER" \
-  | jq</pre>
+  <div class="block warning">
+    <div class="block-header"><span class="block-icon">⚠️</span> Pré-requis — activer PKCE sur logistock-web</div>
+    <div class="block-body">
+      <p>Console Keycloak → Clients → <code>logistock-web</code> → Settings → <strong>Proof Key for Code Exchange</strong> → <code>S256</code>.</p>
+    </div>
   </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── PKCE — 4 étapes en PowerShell ─────────────────────────────────────</span>
+
+<span class="cm"># ── Étape 1 : Générer code_verifier (32 octets, base64url) ─────────────</span>
+$bytes         = [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
+$CODE_VERIFIER = [Convert]::ToBase64String($bytes).TrimEnd("=").Replace("+","-").Replace("/","_")
+
+<span class="cm"># ── Étape 2 : Calculer code_challenge (SHA-256, base64url) ─────────────</span>
+$sha256         = [System.Security.Cryptography.SHA256]::Create()
+$hash           = $sha256.ComputeHash([System.Text.Encoding]::ASCII.GetBytes($CODE_VERIFIER))
+$CODE_CHALLENGE = [Convert]::ToBase64String($hash).TrimEnd("=").Replace("+","-").Replace("/","_")
+
+Write-Host "code_verifier  : $CODE_VERIFIER"
+Write-Host "code_challenge : $CODE_CHALLENGE"
+
+<span class="cm"># ── Étape 3 : Ouvrir l'URL d'autorisation dans le navigateur ───────────</span>
+$authUrl = "http://localhost:8080/realms/logistock/protocol/openid-connect/auth" +
+    "?client_id=logistock-web" +
+    "&response_type=code" +
+    "&redirect_uri=http://localhost:5000/callback" +
+    "&code_challenge=$CODE_CHALLENGE" +
+    "&code_challenge_method=S256"
+
+Write-Host "`nOuverture navigateur..."
+Start-Process $authUrl
+
+<span class="cm"># Après login Keycloak, l'URL de redirection contient ?code=XXXX</span>
+<span class="cm"># Copiez la valeur du paramètre "code" dans l'URL barre d'adresse</span>
+$AUTH_CODE = Read-Host "Collez le code de l'URL de redirection"
+
+<span class="cm"># ── Étape 4 : Échanger le code contre un token ─────────────────────────</span>
+$tokenResponse = (Invoke-WebRequest -Uri "http://localhost:8080/realms/logistock/protocol/openid-connect/token" `
+    -Method Post -UseBasicParsing -Body @{
+        grant_type    = "authorization_code"
+        client_id     = "logistock-web"
+        code          = $AUTH_CODE
+        redirect_uri  = "http://localhost:5000/callback"
+        code_verifier = $CODE_VERIFIER
+    }).Content | ConvertFrom-Json
+
+if ($tokenResponse.access_token) {
+    Write-Host "`n✅ Token obtenu via PKCE !" -ForegroundColor Green
+    Write-Host "   expires_in : $($tokenResponse.expires_in)s"
+    $payload = $tokenResponse.access_token.Split(".")[1]
+    $pad = 4 - ($payload.Length % 4); if ($pad -ne 4) { $payload += "=" * $pad }
+    $decoded = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
+    Write-Host "   user       : $($decoded.preferred_username)"
+} else {
+    Write-Host "❌ Échange échoué : $($tokenResponse.error_description)" -ForegroundColor Red
+}</pre>
+  </div>
+
 
   <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
     Partie 3 : Valider les tokens JWT (30 min)
@@ -1976,35 +2295,75 @@ curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/tok
   </div>
 
   <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── Validation JWT en PowerShell (sans dépendance externe) ────────────</span>
+
+<span class="cm"># 1. Obtenir un token réel pour Alice</span>
+$tokenJson = (Invoke-WebRequest -Uri "http://localhost:8080/realms/logistock/protocol/openid-connect/token" `
+    -Method Post -UseBasicParsing -Body @{
+        client_id="logistock-api"; client_secret="api-secret-change-me"
+        grant_type="password"; username="alice"; password="alice123"
+    }).Content | ConvertFrom-Json
+$ACCESS_TOKEN = $tokenJson.access_token
+
+<span class="cm"># 2. Décoder les claims</span>
+$payload = $ACCESS_TOKEN.Split(".")[1]
+$pad = 4 - ($payload.Length % 4); if ($pad -ne 4) { $payload += "=" * $pad }
+$claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
+
+Write-Host "`n── Claims ──────────────────────────────────────────────"
+Write-Host "  iss : $($claims.iss)"
+Write-Host "  sub : $($claims.sub)"
+Write-Host "  exp : $([System.DateTimeOffset]::FromUnixTimeSeconds($claims.exp).LocalDateTime)"
+
+<span class="cm"># 3. Valider exp et iss</span>
+$now = [System.DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+Write-Host "`n── Validation ──────────────────────────────────────────"
+if ($claims.exp -gt $now) {
+    Write-Host "  ✅ exp : valide (expire dans $(($claims.exp - $now))s)" -ForegroundColor Green
+} else {
+    Write-Host "  ❌ exp : EXPIRÉ" -ForegroundColor Red
+}
+if ($claims.iss -eq "http://localhost:8080/realms/logistock") {
+    Write-Host "  ✅ iss : correct" -ForegroundColor Green
+} else {
+    Write-Host "  ❌ iss : inattendu — $($claims.iss)" -ForegroundColor Red
+}
+
+<span class="cm"># 4. Vérifier la signature via introspection Keycloak</span>
+$intro = (Invoke-WebRequest -Uri "http://localhost:8080/realms/logistock/protocol/openid-connect/token/introspect" `
+    -Method Post -UseBasicParsing -Body @{
+        client_id="logistock-api"; client_secret="api-secret-change-me"; token=$ACCESS_TOKEN
+    }).Content | ConvertFrom-Json
+if ($intro.active) {
+    Write-Host "  ✅ sig : signature vérifiée (introspection active)" -ForegroundColor Green
+} else {
+    Write-Host "  ❌ sig : token rejeté" -ForegroundColor Red
+}</pre>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🐍</span> Validation en Python — référence backend</div>
+    <div class="block-body">
+      <p>En production la validation se fait côté serveur. Exemple Python (nécessite <code>pip install PyJWT requests</code>) :</p>
+    </div>
+  </div>
+
+  <div class="code-block">
     <div class="code-header"><span class="code-lang">python</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Exemple validation JWT en Python (avec PyJWT)</span>
-<span class="kw">import</span> jwt
-<span class="kw">import</span> requests
-
-<span class="cm"># 1. Récupérer la clé publique Keycloak (JWKS)</span>
-jwks_url = <span class="st">"http://localhost:8080/realms/logistock/protocol/openid-connect/certs"</span>
-jwks = requests.get(jwks_url).json()
-
-<span class="cm"># 2. Extraire la clé publique</span>
+    <pre><span class="kw">import</span> jwt, requests
+jwks = requests.get(<span class="st">"http://localhost:8080/realms/logistock/protocol/openid-connect/certs"</span>).json()
 <span class="kw">from</span> jwt.algorithms <span class="kw">import</span> RSAAlgorithm
-public_key = RSAAlgorithm.from_jwk(jwks[<span class="st">'keys'</span>][<span class="cm">0</span>])
-
-<span class="cm"># 3. Valider le JWT</span>
-token = <span class="st">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."</span>
-
+public_key = RSAAlgorithm.from_jwk(jwks[<span class="st">'keys'</span>][0])
+token = <span class="st">"COLLER_L_ACCESS_TOKEN_ICI"</span>
 <span class="kw">try</span>:
-    decoded = jwt.decode(
-        token,
-        public_key,
-        algorithms=[<span class="st">"RS256"</span>],
-        audience=<span class="st">"logistock"</span>,
-        issuer=<span class="st">"http://localhost:8080/realms/logistock"</span>
-    )
-    <span class="kw">print</span>(<span class="st">"✅ Token valide :"</span>, decoded)
+    decoded = jwt.decode(token, public_key, algorithms=[<span class="st">"RS256"</span>],
+        audience=<span class="st">"account"</span>, issuer=<span class="st">"http://localhost:8080/realms/logistock"</span>)
+    <span class="kw">print</span>(<span class="st">"✅ Token valide :"</span>, decoded[<span class="st">'preferred_username'</span>])
 <span class="kw">except</span> jwt.ExpiredSignatureError:
     <span class="kw">print</span>(<span class="st">"❌ Token expiré"</span>)
-<span class="kw">except</span> jwt.InvalidTokenError:
-    <span class="kw">print</span>(<span class="st">"❌ Token invalide"</span>)</pre>
+<span class="kw">except</span> jwt.InvalidTokenError <span class="kw">as</span> e:
+    <span class="kw">print</span>(<span class="st">f"❌ Token invalide : {e}"</span>)</pre>
   </div>
 
   <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
@@ -2013,20 +2372,61 @@ token = <span class="st">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."</span>
 
   <div class="code-block">
     <div class="code-header"><span class="code-lang">nginx</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
-    <pre><span class="cm"># Configuration NGINX pour logistock-api</span>
+    <pre><span class="cm"># ── nginx-api.conf — CORS + Security Headers ───────────────────────────</span>
 <span class="kw">server</span> {
-    <span class="kw">listen</span> 5001;
-    
-    <span class="cm"># CORS headers</span>
-    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Origin'</span> <span class="st">'http://localhost:5000'</span>;
-    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Credentials'</span> <span class="st">'true'</span>;
-    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Methods'</span> <span class="st">'GET, POST, PUT, DELETE'</span>;
-    
+    <span class="kw">listen</span> 80;
+    <span class="kw">server_name</span> localhost;
+
+    <span class="cm"># CORS</span>
+    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Origin'</span>  <span class="st">'http://localhost:5000'</span> always;
+    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Credentials'</span> <span class="st">'true'</span> always;
+    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Methods'</span>  <span class="st">'GET, POST, PUT, DELETE, OPTIONS'</span> always;
+    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Headers'</span>  <span class="st">'Authorization, Content-Type'</span> always;
+
     <span class="cm"># Security headers</span>
-    <span class="kw">add_header</span> <span class="st">'X-Frame-Options'</span> <span class="st">'DENY'</span>;
-    <span class="kw">add_header</span> <span class="st">'X-Content-Type-Options'</span> <span class="st">'nosniff'</span>;
-    <span class="kw">add_header</span> <span class="st">'Strict-Transport-Security'</span> <span class="st">'max-age=31536000'</span>;
-    <span class="kw">add_header</span> <span class="st">'Content-Security-Policy'</span> <span class="st">"default-src 'self'"</span>;
+    <span class="kw">add_header</span> <span class="st">'X-Frame-Options'</span>          <span class="st">'DENY'</span> always;
+    <span class="kw">add_header</span> <span class="st">'X-Content-Type-Options'</span>    <span class="st">'nosniff'</span> always;
+    <span class="kw">add_header</span> <span class="st">'Strict-Transport-Security'</span> <span class="st">'max-age=31536000; includeSubDomains'</span> always;
+    <span class="kw">add_header</span> <span class="st">'Content-Security-Policy'</span>   <span class="st">"default-src 'self'"</span> always;
+    <span class="kw">add_header</span> <span class="st">'Referrer-Policy'</span>           <span class="st">'strict-origin-when-cross-origin'</span> always;
+
+    <span class="kw">location</span> / {
+        <span class="kw">root</span>  /usr/share/nginx/html;
+        <span class="kw">index</span> index.html;
+        <span class="cm"># Répondre aux preflight OPTIONS</span>
+        <span class="kw">if</span> ($request_method = OPTIONS) { <span class="kw">return</span> 204; }
+    }
+}</pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># ─── Appliquer la config et vérifier les headers ───────────────────────</span>
+
+<span class="cm"># 1. Copier nginx-api.conf dans le conteneur et recharger</span>
+docker cp nginx-api.conf logistock_api:/etc/nginx/conf.d/default.conf
+docker exec logistock_api nginx -t       <span class="cm"># tester la config avant reload</span>
+docker exec logistock_api nginx -s reload
+Write-Host "✅ nginx rechargé" -ForegroundColor Green
+
+<span class="cm"># 2. Vérifier les headers de réponse</span>
+$response = Invoke-WebRequest -Uri "http://localhost:5001" -UseBasicParsing -Method Get
+
+Write-Host "`n── Security Headers ────────────────────────────────────"
+@(
+    "X-Frame-Options",
+    "X-Content-Type-Options",
+    "Strict-Transport-Security",
+    "Content-Security-Policy",
+    "Referrer-Policy",
+    "Access-Control-Allow-Origin"
+) | ForEach-Object {
+    $val = $response.Headers[$_]
+    if ($val) {
+        Write-Host "  ✅ $_ : $val" -ForegroundColor Green
+    } else {
+        Write-Host "  ❌ $_ : absent" -ForegroundColor Red
+    }
 }</pre>
   </div>
 
@@ -2034,14 +2434,15 @@ token = <span class="st">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."</span>
     <div class="block-header"><span class="block-icon">✅</span> Livrables TP3</div>
     <div class="block-body">
       <ul>
-        <li>✅ MFA configuré (screenshot QR code)</li>
-        <li>✅ Login Alice avec TOTP (6 chiffres)</li>
-        <li>✅ PKCE flow testé (code_verifier/code_challenge)</li>
-        <li>✅ JWT validation Python script</li>
-        <li>✅ CORS + Security headers configurés</li>
+        <li>✅ MFA configuré — screenshot QR code + connexion Alice avec TOTP</li>
+        <li>✅ Vérification PowerShell : <code>browserFlow = "Browser with MFA"</code></li>
+        <li>✅ PKCE flow complet : <code>code_verifier</code> / <code>code_challenge</code> générés, token obtenu</li>
+        <li>✅ Validation JWT PowerShell : <code>exp</code>, <code>iss</code>, introspection active</li>
+        <li>✅ CORS + Security headers vérifiés (<code>Invoke-WebRequest</code> → headers présents)</li>
       </ul>
     </div>
   </div>
+
 
 </div>
 
@@ -2124,7 +2525,7 @@ token = <span class="st">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."</span>
 
   <!-- SVG Comparison -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;display:flex;align-items:center;justify-content:center;">
-    <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <text x="200" y="25" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#1a1917" text-anchor="middle">
         RBAC vs ABAC
       </text>
@@ -2313,7 +2714,7 @@ echo "✓ Policies chargées dans OPA"</pre>
   </h3>
 
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
-    <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <rect width="800" height="450" fill="#f8f7f4"/>
       <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">RBAC vs ABAC</text>
       
@@ -2581,7 +2982,7 @@ awslocal iam get-role --role-name LogistockEC2S3Role | jq '.Role.AssumeRolePolic
   </h3>
 
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
-    <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <rect width="800" height="400" fill="#f8f7f4"/>
       <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">AssumeRole — Temporary Credentials (1h)</text>
       
@@ -2788,7 +3189,7 @@ echo "test" | awslocal s3 cp - s3://logistock-data/test.txt
 
   <!-- SVG Timeline -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;display:flex;align-items:center;justify-content:center;min-height:500px;">
-    <svg viewBox="0 0 400 520" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 400 520" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <defs>
         <marker id="arrow3" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
           <polygon points="0 0, 10 3, 0 6" fill="#6b7280"/>
@@ -3140,7 +3541,7 @@ Write-Host "`n✅ Vault setup complété !"</pre>
   </h3>
 
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
-    <svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <rect width="800" height="350" fill="#f8f7f4"/>
       <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">JIT Access Timeline — Vault SSH OTP (30 min)</text>
       
@@ -3347,7 +3748,7 @@ docker exec logistock_vault cat /vault/logs/audit.log | jq</pre>
   </h3>
 
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
-    <svg viewBox="0 0 800 550" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 800 550" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block">
       <rect width="800" height="550" fill="#f8f7f4"/>
       <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">Zero Trust Verification Flow — 6 Contrôles Continus</text>
       
