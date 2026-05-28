@@ -1,0 +1,3598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogiStock IAM — Guide Complet 14h</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   CSS DE BASE — Réutilisé de LogiStock S3
+═══════════════════════════════════════════════════════════════ */
+:root {
+  --accent:#2563eb;--accent-bg:#eff6ff;--zone-flat:#2563eb;--zone-flat-bg:#eff6ff;
+  --iam-purple:#7c3aed;--iam-purple-bg:#f5f3ff;
+  --keycloak-green:#10b981;--keycloak-bg:#ecfdf5;
+  --localstack-orange:#ff9900;--localstack-bg:#fff8ed;
+  --opa-blue:#3b82f6;--opa-bg:#eff6ff;
+  --vault-gray:#6b7280;--vault-bg:#f9fafb;
+  --aws-orange:#ff9900;--aws-bg:#fff8ed;
+  --sev-critical:#dc2626;--sev-critical-bg:#fef2f2;--sev-high:#ea580c;--sev-high-bg:#fff7ed;
+  --bg:#f8f7f4;--surface:#fff;--border:#e5e3df;--text:#1a1917;--text-muted:#6b6866;--text-faint:#9c9a97;
+  --ex-border:#f59e0b;--ex-bg:#fffbeb;--ex-title:#92400e;
+  --ck-border:#10b981;--ck-bg:#ecfdf5;--ck-title:#065f46;
+  --tip-border:#3b82f6;--tip-bg:#eff6ff;--tip-title:#1e40af;
+  --warn-border:#ef4444;--warn-bg:#fef2f2;
+  --code-bg:#0f1117;--code-text:#e2e8f0;--code-comment:#6b7280;--code-keyword:#93c5fd;--code-string:#86efac;--code-value:#fca5a5;
+  --sidebar-w:270px;--header-h:56px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;font-size:15px;line-height:1.65;color:var(--text);background:var(--bg)}
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--header-h);background:var(--text);z-index:100;display:flex;align-items:center;padding:0 1.5rem;gap:1.5rem}
+.topbar-logo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.85rem;color:#fff;letter-spacing:.05em;white-space:nowrap}
+.topbar-logo span{color:var(--iam-purple)}
+.topbar-divider{width:1px;height:20px;background:#333}
+.progress-track{flex:1;display:flex;gap:4px;align-items:center}
+.progress-step{flex:1;height:4px;border-radius:2px;background:#2a2a2a;cursor:pointer;transition:background .2s;position:relative}
+.progress-step.active{background:var(--iam-purple)}
+.progress-step.done{background:#374151}
+.progress-step:hover::after{content:attr(data-label);position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;font-size:.7rem;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none}
+.topbar-duration{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:#888;white-space:nowrap}
+.sidebar{position:fixed;top:var(--header-h);left:0;width:var(--sidebar-w);height:calc(100vh - var(--header-h));background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:1.5rem 0}
+.sidebar-section{padding:0 1rem 1rem}
+.sidebar-label{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);padding:0 .5rem;margin-bottom:.4rem}
+.sidebar-item{display:flex;align-items:center;gap:.6rem;padding:.45rem .6rem;border-radius:6px;text-decoration:none;color:var(--text-muted);font-size:.85rem;font-weight:500;transition:all .15s;cursor:pointer}
+.sidebar-item:hover{background:var(--bg);color:var(--text)}
+.sidebar-item.active{background:var(--iam-purple-bg);color:var(--iam-purple);font-weight:600}
+.sidebar-dot{width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .15s}
+.sidebar-item.active .sidebar-dot,.sidebar-item:hover .sidebar-dot{background:var(--iam-purple)}
+.sidebar-divider{height:1px;background:var(--border);margin:.75rem 1rem}
+.sidebar-badge{margin-left:auto;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:10px;}
+.main{margin-left:var(--sidebar-w);margin-top:var(--header-h);min-height:calc(100vh - var(--header-h))}
+.hero{background:var(--text);color:#fff;padding:3rem 3.5rem 2.5rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.15) 0%,transparent 70%);pointer-events:none}
+.hero-meta{display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem}
+.hero-badge{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;letter-spacing:.1em;padding:4px 10px;border-radius:4px;background:var(--iam-purple);color:#fff}
+.hero-course{font-size:.8rem;color:#888;font-family:'JetBrains Mono',monospace}
+.hero h1{font-family:'Syne',sans-serif;font-weight:800;font-size:2.2rem;line-height:1.15;margin-bottom:.75rem;letter-spacing:-.02em}
+.hero h1 em{color:var(--iam-purple);font-style:normal}
+.hero-desc{color:#aaa;max-width:750px;font-size:.95rem;line-height:1.6;margin-bottom:2rem}
+.hero-stats{display:flex;gap:2rem;flex-wrap:wrap}
+.hero-stat{display:flex;flex-direction:column;gap:2px}
+.hero-stat-value{font-family:'Syne',sans-serif;font-weight:700;font-size:1.5rem;color:#fff}
+.hero-stat-label{font-size:.75rem;color:#666;text-transform:uppercase;letter-spacing:.06em}
+.scenario{background:var(--iam-purple-bg);border-left:4px solid var(--iam-purple);padding:1.25rem 3.5rem;font-size:.9rem;color:#5b21b6;font-style:italic;line-height:1.6}
+.scenario strong{font-style:normal;color:var(--iam-purple)}
+.content{padding:0 3.5rem 4rem}
+.section{padding-top:2.5rem;scroll-margin-top:calc(var(--header-h) + 1rem)}
+.section-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:.75rem;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.section-number{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--text-faint);letter-spacing:.1em;min-width:2.5rem}
+.section h2{font-family:'Syne',sans-serif;font-weight:700;font-size:1.35rem;letter-spacing:-.01em}
+.section-duration{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-faint);background:var(--bg);border:1px solid var(--border);padding:3px 10px;border-radius:20px;white-space:nowrap}
+.block{border-radius:10px;padding:1.1rem 1.25rem;margin:1.25rem 0;border-left:4px solid}
+.block-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;font-weight:700;font-size:.85rem}
+.block-icon{font-size:1.1rem}
+.block-body{font-size:.9rem;line-height:1.6}
+.block-body ul,.block-body ol{margin-left:1.5rem;margin-top:.5rem}
+.block-body p+p{margin-top:.5rem}
+.exercise{background:var(--ex-bg);border-color:var(--ex-border)}.exercise .block-header{color:var(--ex-title)}
+.checkpoint{background:var(--ck-bg);border-color:var(--ck-border)}.checkpoint .block-header{color:var(--ck-title)}
+.tip{background:var(--tip-bg);border-color:var(--tip-border)}.tip .block-header{color:var(--tip-title)}
+.warning{background:var(--warn-bg);border-color:var(--warn-border)}.warning .block-header{color:var(--sev-critical)}
+.code-block{position:relative;margin:1rem 0;border-radius:10px;overflow:hidden;border:1px solid #1e2433}
+.code-header{display:flex;align-items:center;justify-content:space-between;background:#161b27;padding:.5rem 1rem;border-bottom:1px solid #1e2433}
+.code-lang{font-family:'JetBrains Mono',monospace;font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4b5563}
+.copy-btn{font-family:'JetBrains Mono',monospace;font-size:.65rem;font-weight:600;letter-spacing:.05em;color:#4b5563;background:transparent;border:1px solid #2a3040;border-radius:4px;padding:3px 10px;cursor:pointer;transition:all .15s}
+.copy-btn:hover{color:#93c5fd;border-color:#93c5fd}
+pre{background:var(--code-bg);padding:1.1rem 1.25rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.7;color:var(--code-text)}
+.cm{color:var(--code-comment)}.kw{color:var(--code-keyword)}.st{color:var(--code-string)}
+code{font-family:'JetBrains Mono',monospace;font-size:.82em;background:#f1f0ed;color:#c7254e;padding:1px 5px;border-radius:4px}
+
+/* IAM-specific badges */
+.badge-keycloak{background:var(--keycloak-bg);color:var(--keycloak-green);border:1px solid var(--keycloak-green)}
+.badge-localstack{background:var(--localstack-bg);color:var(--localstack-orange);border:1px solid var(--localstack-orange)}
+.badge-opa{background:var(--opa-bg);color:var(--opa-blue);border:1px solid var(--opa-blue)}
+.badge-vault{background:var(--vault-bg);color:var(--vault-gray);border:1px solid var(--vault-gray)}
+.badge-iam{background:var(--iam-purple-bg);color:var(--iam-purple);border:1px solid var(--iam-purple)}
+</style>
+</head>
+
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TOPBAR NAVIGATION                                               -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<header class="topbar">
+  <div class="topbar-logo">LOGI<span>STOCK</span> · IAM <span style="color:#10b981;font-size:0.65rem;margin-left:0.5rem;">14H</span></div>
+  <div class="topbar-divider"></div>
+  <nav class="progress-track">
+    <div class="progress-step active" data-target="intro" data-label="Intro"></div>
+    <div class="progress-step" data-target="deploy" data-label="Deploy"></div>
+    <div class="progress-step" data-target="tp1" data-label="TP1"></div>
+    <div class="progress-step" data-target="tp2" data-label="TP2"></div>
+    <div class="progress-step" data-target="tp3" data-label="TP3"></div>
+    <div class="progress-step" data-target="tp4" data-label="TP4"></div>
+    <div class="progress-step" data-target="tp5" data-label="TP5"></div>
+    <div class="progress-step" data-target="tp6" data-label="TP6"></div>
+    <div class="progress-step" data-target="tp7" data-label="TP7"></div>
+    <div class="progress-step" data-target="retro" data-label="Retro"></div>
+  </nav>
+  <div class="topbar-duration">14h00 · 12 exercices · 0€</div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SIDEBAR NAVIGATION                                              -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<aside class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Navigation</div>
+    <a href="#intro" class="sidebar-item active">
+      <span class="sidebar-dot"></span>
+      <span>Introduction</span>
+    </a>
+    <a href="#deploy" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>Déploiement</span>
+      <span class="sidebar-badge" style="background:var(--bg);color:var(--text-muted);border:1px solid var(--border)">30 min</span>
+    </a>
+  </div>
+  
+  <div class="sidebar-divider"></div>
+  
+  <div class="sidebar-section">
+    <div class="sidebar-label">Jour 1 • 7h</div>
+    <a href="#tp1" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>TP1 · Keycloak SSO</span>
+      <span class="sidebar-badge badge-keycloak">1h30</span>
+    </a>
+    <a href="#tp2" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>TP2 · AWS IAM</span>
+      <span class="sidebar-badge badge-localstack">1h30</span>
+    </a>
+    <a href="#tp3" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>TP3 · MFA + Sécurité</span>
+      <span class="sidebar-badge badge-keycloak">2h30</span>
+    </a>
+  </div>
+  
+  <div class="sidebar-divider"></div>
+  
+  <div class="sidebar-section">
+    <div class="sidebar-label">Jour 2 • 7h</div>
+    <a href="#tp4" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>TP4 · RBAC/ABAC</span>
+      <span class="sidebar-badge badge-opa">1h30</span>
+    </a>
+    <a href="#tp5" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>TP5 · IAM Roles</span>
+      <span class="sidebar-badge badge-localstack">1h30</span>
+    </a>
+    <a href="#tp6" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>TP6 · JIT Access</span>
+      <span class="sidebar-badge badge-vault">1h30</span>
+    </a>
+    <a href="#tp7" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>TP7 · Zero Trust</span>
+      <span class="sidebar-badge badge-iam">2h30</span>
+    </a>
+  </div>
+  
+  <div class="sidebar-divider"></div>
+  
+  <div class="sidebar-section">
+    <a href="#retro" class="sidebar-item">
+      <span class="sidebar-dot"></span>
+      <span>Rétrospective</span>
+      <span class="sidebar-badge" style="background:var(--bg);color:var(--text-muted);border:1px solid var(--border)">50 min</span>
+    </a>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MAIN CONTENT                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<main class="main">
+
+<!-- HERO SECTION -->
+<section class="hero" id="intro">
+  <div class="hero-meta">
+    <span class="hero-badge">M1 CYBERSÉCURITÉ</span>
+    <span class="hero-course">IAME858 · IAM & Zero Trust</span>
+  </div>
+  <h1>LogiStock IAM — Gestion <em>Identités et Accès</em></h1>
+  <p class="hero-desc">
+    Suite de SECE854 S3 (segmentation réseau), déployez un système IAM moderne pour LogiStock avec 
+    OAuth2/OIDC, SSO, RBAC/ABAC, et Zero Trust. Réutilise Keycloak, LocalStack (AWS sans compte), 
+    OPA et Vault (CRYE857). Guide complet 14h avec infrastructure Docker prête à l'emploi.
+  </p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-value">14h00</div>
+      <div class="hero-stat-label">Durée totale</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value">12</div>
+      <div class="hero-stat-label">Exercices</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value">0€</div>
+      <div class="hero-stat-label">LocalStack gratuit</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value">4</div>
+      <div class="hero-stat-label">Technologies</div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENARIO -->
+<div class="scenario">
+  <strong>📋 Contexte professionnel :</strong> Suite à l'audit SECE854 S3, l'infrastructure LogiStock 
+  est maintenant segmentée (DMZ/Internal/Admin) avec firewall et bastion durci. Nouveau problème découvert 
+  par le RSSI : tous les employés utilisent le même compte admin pour accéder aux services (web, api, admin). 
+  Impossible de tracer qui a fait quoi ! Votre mission : implémenter un système IAM moderne avec comptes 
+  individuels, SSO, rôles granulaires, audit complet, et architecture Zero Trust.
+</div>
+
+<div class="content">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION DÉPLOIEMENT                                             -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="deploy">
+  <div class="section-header">
+    <span class="section-number">DÉPLOIEMENT</span>
+    <h2>Preparation de l'infrastructure</h2>
+    <span class="section-duration">5 min</span>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📋</span> Prérequis</div>
+    <div class="block-body">
+      <ul>
+        <li><strong>Docker Desktop</strong> installé et démarré (v20.10+)</li>
+        <li><strong>PowerShell</strong> (Windows) ou <strong>Bash</strong> (Linux/macOS)</li>
+        <li><strong>Git</strong> pour cloner le repo</li>
+        <li><strong>4 GB RAM minimum</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Setup (une seule fois)</div>
+    <div class="block-body">
+      <p><strong>PowerShell (Windows) :</strong></p>
+      <pre style="background:#0f1117;color:#e2e8f0;padding:1rem;border-radius:6px;margin:0.5rem 0;">git clone https://github.com/tsantafamenontsoa/logistock-iam.git
+cd logistock-iam</pre>
+      <p style="margin-top:1rem;"><strong>Bash (Linux/macOS) :</strong></p>
+      <pre style="background:#0f1117;color:#e2e8f0;padding:1rem;border-radius:6px;margin:0.5rem 0;">git clone https://github.com/tsantafamenontsoa/logistock-iam.git
+cd logistock-iam</pre>
+      <p style="margin-top:1rem;"><strong>💡 Chaque TP vous indiquera exactement quoi lancer !</strong></p>
+      <p>Pas besoin de tout démarrer à la fois. Les services se lancent progressivement au fil des TPs.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    📊 Architecture LogiStock IAM complète
+  </h3>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
+    <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+      <rect width="800" height="600" fill="#f8f7f4"/>
+      <text x="400" y="30" font-family="Syne, sans-serif" font-size="20" font-weight="700" fill="#1a1917" text-anchor="middle">Architecture LogiStock IAM</text>
+      <rect x="50" y="60" width="700" height="120" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="8"/>
+      <text x="400" y="85" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#5b21b6" text-anchor="middle">AUTHENTIFICATION</text>
+      <rect x="100" y="100" width="140" height="60" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="6"/>
+      <text x="170" y="125" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">Keycloak</text>
+      <text x="170" y="142" font-family="Inter, sans-serif" font-size="10" fill="#065f46" text-anchor="middle">OAuth2/OIDC</text>
+      <text x="170" y="155" font-family="Inter, sans-serif" font-size="9" fill="#10b981" text-anchor="middle">port 8080</text>
+      <rect x="280" y="100" width="140" height="60" fill="#fff8ed" stroke="#ff9900" stroke-width="2" rx="6"/>
+      <text x="350" y="125" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#b85c00" text-anchor="middle">LocalStack</text>
+      <text x="350" y="142" font-family="Inter, sans-serif" font-size="10" fill="#b85c00" text-anchor="middle">AWS IAM</text>
+      <text x="350" y="155" font-family="Inter, sans-serif" font-size="9" fill="#ff9900" text-anchor="middle">port 4566</text>
+      <rect x="460" y="100" width="100" height="60" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="6"/>
+      <text x="510" y="125" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">MFA</text>
+      <text x="510" y="142" font-family="Inter, sans-serif" font-size="10" fill="#dc2626" text-anchor="middle">TOTP</text>
+      <text x="510" y="155" font-family="Inter, sans-serif" font-size="9" fill="#dc2626" text-anchor="middle">Obligatoire</text>
+      <path d="M 400 180 L 400 210" stroke="#6b7280" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+      <rect x="50" y="220" width="700" height="120" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="8"/>
+      <text x="400" y="245" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#1e40af" text-anchor="middle">AUTHORIZATION</text>
+      <rect x="100" y="260" width="140" height="60" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="6"/>
+      <text x="170" y="285" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">OPA</text>
+      <text x="170" y="302" font-family="Inter, sans-serif" font-size="10" fill="#1e40af" text-anchor="middle">RBAC/ABAC</text>
+      <text x="170" y="315" font-family="Inter, sans-serif" font-size="9" fill="#3b82f6" text-anchor="middle">port 8181</text>
+      <rect x="280" y="260" width="140" height="60" fill="#f9fafb" stroke="#6b7280" stroke-width="2" rx="6"/>
+      <text x="350" y="285" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#374151" text-anchor="middle">Vault</text>
+      <text x="350" y="302" font-family="Inter, sans-serif" font-size="10" fill="#374151" text-anchor="middle">JIT Access</text>
+      <text x="350" y="315" font-family="Inter, sans-serif" font-size="9" fill="#6b7280" text-anchor="middle">port 8200</text>
+      <rect x="460" y="260" width="100" height="60" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="6"/>
+      <text x="510" y="282" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#5b21b6" text-anchor="middle">OAuth2</text>
+      <text x="510" y="297" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#5b21b6" text-anchor="middle">Proxy</text>
+      <text x="510" y="312" font-family="Inter, sans-serif" font-size="9" fill="#7c3aed" text-anchor="middle">port 4180</text>
+      <path d="M 400 340 L 400 370" stroke="#6b7280" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+      <rect x="50" y="380" width="700" height="180" fill="#fff" stroke="#e5e3df" stroke-width="2" rx="8"/>
+      <text x="400" y="405" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#6b6866" text-anchor="middle">SERVICES LOGISTOCK (SECE854 S3)</text>
+      <rect x="100" y="420" width="180" height="120" fill="#fff7ed" stroke="#ea580c" stroke-width="2" rx="6"/>
+      <text x="190" y="440" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#c2410c" text-anchor="middle">DMZ</text>
+      <text x="190" y="465" font-family="JetBrains Mono, monospace" font-size="10" fill="#9a3412" text-anchor="middle">web (5000)</text>
+      <text x="190" y="480" font-family="JetBrains Mono, monospace" font-size="10" fill="#9a3412" text-anchor="middle">api (5001)</text>
+      <text x="190" y="495" font-family="JetBrains Mono, monospace" font-size="10" fill="#9a3412" text-anchor="middle">oauth2-proxy</text>
+      <text x="190" y="525" font-family="Inter, sans-serif" font-size="9" fill="#ea580c" text-anchor="middle">10.1.0.0/24</text>
+      <rect x="310" y="420" width="180" height="120" fill="#eff6ff" stroke="#2563eb" stroke-width="2" rx="6"/>
+      <text x="400" y="440" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">INTERNAL</text>
+      <text x="400" y="465" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a" text-anchor="middle">db (MySQL)</text>
+      <text x="400" y="480" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a" text-anchor="middle">monitoring</text>
+      <text x="400" y="495" font-family="JetBrains Mono, monospace" font-size="10" fill="#1e3a8a" text-anchor="middle">keycloak</text>
+      <text x="400" y="525" font-family="Inter, sans-serif" font-size="9" fill="#2563eb" text-anchor="middle">10.0.0.0/24</text>
+      <rect x="520" y="420" width="180" height="120" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="6"/>
+      <text x="610" y="440" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#5b21b6" text-anchor="middle">ADMIN</text>
+      <text x="610" y="460" font-family="JetBrains Mono, monospace" font-size="10" fill="#6b21a8" text-anchor="middle">bastion (2222)</text>
+      <text x="610" y="475" font-family="JetBrains Mono, monospace" font-size="10" fill="#6b21a8" text-anchor="middle">nas</text>
+      <text x="610" y="490" font-family="JetBrains Mono, monospace" font-size="10" fill="#6b21a8" text-anchor="middle">backup</text>
+      <text x="610" y="505" font-family="JetBrains Mono, monospace" font-size="10" fill="#6b21a8" text-anchor="middle">vault</text>
+      <text x="610" y="525" font-family="Inter, sans-serif" font-size="9" fill="#7c3aed" text-anchor="middle">10.2.0.0/24</text>
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#6b7280"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP1 : KEYCLOAK + SSO                                           -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="tp1">
+  <div class="section-header">
+    <span class="section-number">TP1 · JOUR 1</span>
+    <h2>Keycloak + SSO LogiStock</h2>
+    <span class="section-duration">1h30</span>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:1.5rem 0 1rem;font-size:1.3rem;color:#7c3aed;">
+  📚 Concepts clés — Keycloak & OAuth2
+</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin:1.5rem 0;">
+  
+  <!-- Texte -->
+  <div>
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">🔑</span> Qu'est-ce que Keycloak ?</div>
+      <div class="block-body">
+        <p><strong>Identity Provider (IdP)</strong> Open Source qui centralise l'authentification :</p>
+        <ul style="margin-top:0.75rem;">
+          <li>🔐 Gère les users et leurs credentials</li>
+          <li>🎭 Distribue des JWT tokens après login</li>
+          <li>🔗 Supporte OAuth2 & OpenID Connect (OIDC)</li>
+          <li>🌍 API REST pour intégrations custom</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">🏛️</span> Qu'est-ce qu'un Realm ?</div>
+      <div class="block-body">
+        <p><strong>Espace isolé</strong> pour un projet/organisation :</p>
+        <ul style="margin-top:0.75rem;">
+          <li><code>master</code> = realm admin (authentification interne)</li>
+          <li><code>logistock</code> = realm app (nos utilisateurs métier)</li>
+          <li>Chaque realm a ses <strong>users</strong>, <strong>clients</strong>, <strong>roles</strong>, <strong>policies</strong></li>
+          <li>Isolation complète : les users du realm A ne voient pas le realm B</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">🔄</span> Pourquoi 2 conteneurs ?</div>
+      <div class="block-body">
+        <ul>
+          <li><strong>Keycloak</strong> (port 8080) = service auth</li>
+          <li><strong>PostgreSQL</strong> (port 5433) = DB persistante</li>
+        </ul>
+        <p style="margin-top:0.75rem;color:#6b7280;font-size:0.95rem;">
+          Keycloak a besoin d'une base de données pour stocker users, realms, sessions, etc. Sans PostgreSQL, les données seraient perdues au redémarrage du conteneur.
+        </p>
+      </div>
+    </div>
+
+    <div class="block checkpoint">
+      <div class="block-header"><span class="block-icon">🔗</span> OAuth2/OIDC Flow</div>
+      <div class="block-body">
+        <p style="font-family:'JetBrains Mono',monospace;font-size:0.9rem;background:#f3f4f6;padding:1rem;border-radius:6px;margin-top:0.75rem;">
+          1. User ouvre http://localhost:5000 (web LogiStock)<br/>
+          2. App redirige vers http://localhost:8080/login<br/>
+          3. User tape admin/logistockadmin<br/>
+          4. Keycloak valide &amp; retourne JWT token<br/>
+          5. User redirecté vers web avec token<br/>
+          6. Web peut accéder aux resources protégées
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SVG Architecture -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#7c3aed"/>
+        </marker>
+      </defs>
+      <text x="200" y="25" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#1a1917" text-anchor="middle">TP1 Architecture</text>
+      <rect x="50" y="50" width="300" height="80" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="8"/>
+      <text x="200" y="75" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">User Browser</text>
+      <text x="200" y="95" font-family="JetBrains Mono, monospace" font-size="10" fill="#7f1d1d" text-anchor="middle">Alice / Alice123</text>
+      <text x="200" y="115" font-family="Inter, sans-serif" font-size="9" fill="#dc2626" text-anchor="middle">http://localhost:5000 (Web)</text>
+      <path d="M 200 130 L 200 160" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="220" y="148" font-family="Inter, sans-serif" font-size="8" fill="#7c3aed">login</text>
+      <rect x="50" y="160" width="140" height="100" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="8"/>
+      <text x="120" y="185" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">Keycloak</text>
+      <text x="120" y="202" font-family="Inter, sans-serif" font-size="9" fill="#059669" text-anchor="middle">OAuth2/OIDC</text>
+      <text x="120" y="218" font-family="Inter, sans-serif" font-size="8" fill="#047857" text-anchor="middle">Validate credentials</text>
+      <text x="120" y="232" font-family="Inter, sans-serif" font-size="8" fill="#047857" text-anchor="middle">Issue JWT token</text>
+      <text x="120" y="248" font-family="Inter, sans-serif" font-size="9" fill="#10b981" text-anchor="middle">:8080</text>
+      <rect x="210" y="160" width="140" height="100" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="8"/>
+      <text x="280" y="185" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">PostgreSQL</text>
+      <text x="280" y="202" font-family="Inter, sans-serif" font-size="9" fill="#1e40af" text-anchor="middle">Database</text>
+      <text x="280" y="218" font-family="Inter, sans-serif" font-size="8" fill="#2563eb" text-anchor="middle">Users</text>
+      <text x="280" y="230" font-family="Inter, sans-serif" font-size="8" fill="#2563eb" text-anchor="middle">Realms</text>
+      <text x="280" y="242" font-family="Inter, sans-serif" font-size="8" fill="#2563eb" text-anchor="middle">Sessions</text>
+      <text x="280" y="256" font-family="Inter, sans-serif" font-size="9" fill="#3b82f6" text-anchor="middle">:5433</text>
+      <path d="M 190 210 L 210 210" stroke="#666" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow)"/>
+      <path d="M 210 220 L 190 220" stroke="#666" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow)"/>
+      <path d="M 200 160 L 200 130" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="230" y="148" font-family="Inter, sans-serif" font-size="8" fill="#7c3aed">JWT token</text>
+      <rect x="50" y="290" width="300" height="180" fill="#f9fafb" stroke="#9ca3af" stroke-width="1" stroke-dasharray="5,5" rx="6"/>
+      <text x="60" y="310" font-family="Syne, sans-serif" font-size="11" font-weight="700" fill="#374151">Realm "logistock"</text>
+      <circle cx="90" cy="340" r="12" fill="#ecfdf5" stroke="#10b981" stroke-width="1"/>
+      <text x="90" y="345" font-family="Inter, sans-serif" font-size="8" font-weight="600" fill="#059669" text-anchor="middle">A</text>
+      <text x="90" y="358" font-family="Inter, sans-serif" font-size="7" fill="#059669" text-anchor="middle">alice</text>
+      <circle cx="140" cy="340" r="12" fill="#ecfdf5" stroke="#10b981" stroke-width="1"/>
+      <text x="140" y="345" font-family="Inter, sans-serif" font-size="8" font-weight="600" fill="#059669" text-anchor="middle">B</text>
+      <text x="140" y="358" font-family="Inter, sans-serif" font-size="7" fill="#059669" text-anchor="middle">bob</text>
+      <circle cx="190" cy="340" r="12" fill="#ecfdf5" stroke="#10b981" stroke-width="1"/>
+      <text x="190" y="345" font-family="Inter, sans-serif" font-size="8" font-weight="600" fill="#059669" text-anchor="middle">C</text>
+      <text x="190" y="358" font-family="Inter, sans-serif" font-size="7" fill="#059669" text-anchor="middle">charlie</text>
+      <text x="250" y="348" font-family="Inter, sans-serif" font-size="8" fill="#059669">...+3 users</text>
+      <text x="60" y="380" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#374151">Roles:</text>
+      <text x="60" y="395" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b7280">• stock_manager</text>
+      <text x="60" y="408" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b7280">• accountant</text>
+      <text x="60" y="421" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b7280">• viewer</text>
+      <text x="210" y="380" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#374151">Clients:</text>
+      <text x="210" y="395" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b7280">• logistock-web</text>
+      <text x="210" y="408" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b7280">• logistock-api</text>
+      <text x="210" y="421" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b7280">• logistock-admin</text>
+      <text x="60" y="460" font-family="Inter, sans-serif" font-size="8" fill="#9ca3af" font-style="italic">Chaque realm a ses users, roles, clients, policies isolés</text>
+    </svg>
+  </div>
+
+</div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">⚡</span> Lancer les services (30 secondes)</div>
+    <div class="block-body">
+      <p><strong>PowerShell (Windows) :</strong></p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam
+Start-Sleep -Seconds 45
+curl http://localhost:8080/realms/master</pre>
+  </div>
+
+  <div class="block-body" style="margin-top:1rem;">
+    <p><strong>Bash (Linux/macOS) :</strong></p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam
+sleep 45
+curl http://localhost:8080/realms/master</pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
+    <div class="block-body">
+      <ul>
+        <li>Accéder à <a href="http://localhost:8080" target="_blank">http://localhost:8080</a></li>
+        <li>Login : <code>admin</code> / <code>logistockadmin</code></li>
+        <li>Vous voyez le dashboard Keycloak ✅</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
+    <svg viewBox="0 0 700 650" xmlns="http://www.w3.org/2000/svg" style="background:#f8f7f4; font-family: 'Inter', monospace;">
+  <rect width="700" height="650" fill="#f8f7f4" rx="8"/>
+  <text x="350" y="30" font-size="16" font-weight="bold" fill="#1a1917" text-anchor="middle">OAuth2 Authorization Code Flow</text>
+
+  <!-- En-têtes des colonnes -->
+  <rect x="40" y="60" width="180" height="30" fill="#eff6ff" stroke="#3b82f6" stroke-width="1" rx="4"/>
+  <text x="130" y="80" font-size="12" font-weight="bold" fill="#1e40af" text-anchor="middle">🌐 Browser</text>
+
+  <rect x="260" y="60" width="180" height="30" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1" rx="4"/>
+  <text x="350" y="80" font-size="12" font-weight="bold" fill="#5b21b6" text-anchor="middle">🔐 Keycloak</text>
+
+  <rect x="480" y="60" width="180" height="30" fill="#fff8ed" stroke="#ff9900" stroke-width="1" rx="4"/>
+  <text x="570" y="80" font-size="12" font-weight="bold" fill="#b85c00" text-anchor="middle">📦 API (LogiStock)</text>
+
+  <!-- Ligne de séparation -->
+  <line x1="40" y1="100" x2="660" y2="100" stroke="#e5e3df" stroke-width="1"/>
+
+  <!-- Étape 1 -->
+  <rect x="40" y="110" width="180" height="50" fill="#fff" stroke="#3b82f6" stroke-width="1" rx="4"/>
+  <text x="130" y="130" font-size="10" fill="#1e40af" text-anchor="middle">1️⃣ Demande la page</text>
+  <text x="130" y="145" font-size="9" fill="#3b82f6" text-anchor="middle">GET /auth</text>
+  <path d="M 220 135 L 260 135" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="240" y="125" font-size="8" fill="#3b82f6" text-anchor="middle">⟶</text>
+
+  <!-- Étape 2 -->
+  <rect x="260" y="110" width="180" height="50" fill="#fff" stroke="#7c3aed" stroke-width="1" rx="4"/>
+  <text x="350" y="130" font-size="10" fill="#5b21b6" text-anchor="middle">2️⃣ Redirige vers login</text>
+  <text x="350" y="145" font-size="9" fill="#7c3aed" text-anchor="middle">302 Login form</text>
+  <path d="M 260 135 L 220 135" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="240" y="145" font-size="8" fill="#7c3aed" text-anchor="middle">⟵</text>
+
+  <!-- Étape 3 -->
+  <rect x="40" y="180" width="180" height="50" fill="#fff" stroke="#10b981" stroke-width="1" rx="4"/>
+  <text x="130" y="200" font-size="10" fill="#065f46" text-anchor="middle">3️⃣ Alice s'authentifie</text>
+  <text x="130" y="215" font-size="9" fill="#10b981" text-anchor="middle">username / password</text>
+  <path d="M 220 205 L 260 205" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="240" y="195" font-size="8" fill="#10b981" text-anchor="middle">⟶</text>
+
+  <!-- Étape 4 -->
+  <rect x="260" y="180" width="180" height="50" fill="#fff" stroke="#ea580c" stroke-width="1" rx="4"/>
+  <text x="350" y="200" font-size="10" fill="#c2410c" text-anchor="middle">4️⃣ Génère un code</text>
+  <text x="350" y="215" font-size="9" fill="#ea580c" text-anchor="middle">?code=ABC123</text>
+  <path d="M 440 205 L 480 205" stroke="#ea580c" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="460" y="195" font-size="8" fill="#ea580c" text-anchor="middle">⟶</text>
+
+  <!-- Étape 5 -->
+  <rect x="260" y="250" width="180" height="50" fill="#fff" stroke="#2563eb" stroke-width="1" rx="4"/>
+  <text x="350" y="270" font-size="10" fill="#1e40af" text-anchor="middle">5️⃣ Échange code ↔ token</text>
+  <text x="350" y="285" font-size="9" fill="#2563eb" text-anchor="middle">POST /token + code + secret</text>
+  <path d="M 260 275 L 220 275" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="240" y="265" font-size="8" fill="#2563eb" text-anchor="middle">⟵</text>
+
+  <!-- Étape 6 -->
+  <rect x="260" y="320" width="180" height="50" fill="#fff" stroke="#10b981" stroke-width="1" rx="4"/>
+  <text x="350" y="340" font-size="10" fill="#065f46" text-anchor="middle">6️⃣ Retourne access_token</text>
+  <text x="350" y="355" font-size="9" fill="#10b981" text-anchor="middle">200 OK (JWT)</text>
+  <path d="M 440 345 L 480 345" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="460" y="335" font-size="8" fill="#10b981" text-anchor="middle">⟶</text>
+
+  <!-- Étape 7 -->
+  <rect x="480" y="320" width="180" height="50" fill="#fff" stroke="#ff9900" stroke-width="1" rx="4"/>
+  <text x="570" y="340" font-size="10" fill="#b85c00" text-anchor="middle">7️⃣ Appelle l'API</text>
+  <text x="570" y="355" font-size="9" fill="#ff9900" text-anchor="middle">GET /api/stocks</text>
+  <text x="570" y="365" font-size="8" fill="#ff9900" text-anchor="middle">Bearer &lt;token&gt;</text>
+
+  <!-- Légende -->
+  <rect x="40" y="410" width="620" height="40" fill="#fffbeb" stroke="#f59e0b" stroke-width="1" rx="4"/>
+  <text x="350" y="428" font-size="10" fill="#92400e" text-anchor="middle">🔒 Sécurité : code à usage unique • secret jamais exposé • JWT signé</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <polygon points="0 0, 8 4, 0 8" fill="#6b7280"/>
+    </marker>
+  </defs>
+</svg>
+  </div>
+
+  <div class="block exercise">
+    <div class="block-header"><span class="block-icon">📝</span> Setup données — Créer le realm + users Keycloak</div>
+    <div class="block-body">
+      <p>Choisissez votre approche pour créer le realm "logistock" et les 6 utilisateurs :</p>
+    </div>
+  </div>
+
+ 
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 0 : Obtenir un token admin (PowerShell)</h3>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$tokenUrl = "http://localhost:8080/realms/master/protocol/openid-connect/token"
+$tokenBody = @{
+    client_id = "admin-cli"
+    username = "admin"
+    password = "logistockadmin"
+    grant_type = "password"
+}
+$response = Invoke-WebRequest -Uri $tokenUrl -Method Post -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
+$TOKEN = ($response.Content | ConvertFrom-Json).access_token
+Write-Host "✅ Token obtenu"</pre></div>
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 1 : Mettre à jour les utilisateurs (PowerShell)</h3>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$users = @(
+  @{ username = "alice"; email = "alice@logistock.com"; firstName = "Alice"; lastName = "Martin" }
+  @{ username = "bob"; email = "bob@logistock.com"; firstName = "Bob"; lastName = "Dupont" }
+  @{ username = "charlie"; email = "charlie@logistock.com"; firstName = "Charlie"; lastName = "Lambert" }
+  @{ username = "dave"; email = "dave@logistock.com"; firstName = "Dave"; lastName = "Bernard" }
+  @{ username = "eve"; email = "eve@logistock.com"; firstName = "Eve"; lastName = "Dubois" }
+  @{ username = "frank"; email = "frank@logistock.com"; firstName = "Frank"; lastName = "Moreau" }
+)
+
+foreach ($user in $users) {
+    $userId = (Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/users?username=$($user.username)" `
+        -Headers @{ "Authorization" = "Bearer $TOKEN" } | ConvertFrom-Json)[0].id
+    $updateBody = @{
+        firstName = $user.firstName
+        lastName = $user.lastName
+        email = $user.email
+        emailVerified = $true
+    } | ConvertTo-Json
+    Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/users/$userId" -Method Put `
+        -Headers @{ "Authorization" = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+        -Body $updateBody | Out-Null
+    Write-Host "✅ Updated: $($user.username)"
+}</pre></div>
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 2 : Créer les groupes (PowerShell)</h3>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$groups = @("admins", "managers", "developers", "accountants", "viewers")
+foreach ($group in $groups) {
+    $groupBody = @{ name = $group } | ConvertTo-Json
+    Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/groups" -Method Post `
+        -Headers @{ "Authorization" = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+        -Body $groupBody | Out-Null
+    Write-Host "✅ Group: $group"
+}</pre></div>
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 3 : Créer les rôles (avec vérification robuste)</h3>
+  <div class="block warning"><div class="block-header"><span class="block-icon">⚠️</span> Éviter l’erreur 400 Bad Request</div><div class="block-body"><p>L’API Keycloak retourne une erreur 400 si le rôle existe déjà ou si le corps JSON contient des champs superflus. Le script suivant rafraîchit le token, n’envoie que <code>{"name": "..."}</code> et vérifie l’existence préalable.</p></div></div>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre># Rafraîchir le token (au cas où)
+$tokenUrl = "http://localhost:8080/realms/master/protocol/openid-connect/token"
+$tokenBody = @{
+    client_id = "admin-cli"
+    username = "admin"
+    password = "logistockadmin"
+    grant_type = "password"
+}
+$response = Invoke-WebRequest -Uri $tokenUrl -Method Post -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
+$TOKEN = ($response.Content | ConvertFrom-Json).access_token
+
+# Récupérer les rôles existants
+$existingRoles = Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/roles" `
+    -Headers @{ "Authorization" = "Bearer $TOKEN" } | ConvertFrom-Json
+$existingRoleNames = $existingRoles.name
+
+# Liste des rôles (sans description)
+$roles = @("admin", "stock_manager", "developer", "accountant", "viewer")
+
+foreach ($roleName in $roles) {
+    if ($roleName -in $existingRoleNames) {
+        Write-Host "⚠️ Role '$roleName' existe déjà, ignoré" -ForegroundColor Yellow
+        continue
+    }
+    $roleBody = @{ name = $roleName } | ConvertTo-Json
+    try {
+        Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/roles" -Method Post `
+            -Headers @{ "Authorization" = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+            -Body $roleBody -ErrorAction Stop | Out-Null
+        Write-Host "✅ Role créé: $roleName" -ForegroundColor Green
+    } catch {
+        $statusCode = $_.Exception.Response.StatusCode.value__
+        $responseBody = $_.ErrorDetails.Message
+        Write-Host "❌ Échec création role '$roleName' (HTTP $statusCode) : $responseBody" -ForegroundColor Red
+    }
+}</pre></div>
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 4 : Créer les clients OAuth2 (PowerShell)</h3>
+  <div class="code-block"><div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>$clients = @(
+    @{ clientId = "logistock-web"; publicClient = $true; redirectUris = @("http://localhost:5000/*", "http://localhost:4180/*") }
+    @{ clientId = "logistock-api"; publicClient = $false; secret = "api-secret-change-me"; redirectUris = @("http://localhost:5001/*") }
+    @{ clientId = "logistock-admin"; publicClient = $false; secret = "admin-secret-change-me"; redirectUris = @("http://localhost:5002/*") }
+    @{ clientId = "logistock-proxy"; publicClient = $false; secret = "proxy-secret-change-me"; redirectUris = @("http://localhost:4180/oauth2/callback") }
+)
+
+foreach ($client in $clients) {
+    $clientBody = $client | ConvertTo-Json -Depth 3
+    try {
+        Invoke-WebRequest -Uri "http://localhost:8080/admin/realms/logistock/clients" -Method Post `
+            -Headers @{ "Authorization" = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+            -Body $clientBody | Out-Null
+        Write-Host "✅ Client: $($client.clientId)"
+    } catch {
+        if ($_.Exception.Response.StatusCode -eq 409) {
+            Write-Host "⚠️ Client '$($client.clientId)' existe déjà" -ForegroundColor Yellow
+        } else { throw }
+    }
+}</pre></div>
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 5 : Récupérer un token JWT (Password Grant)</h3>
+  <div class="block tip"><div class="block-header"><span class="block-icon">🔑</span> Activer Direct Access Grants</div><div class="block-body"><p>Pour utiliser le <code>grant_type=password</code>, il faut activer <strong>Direct Access Grants</strong> dans le client <code>logistock-api</code> (console Keycloak → Clients → logistock-api → Authentication Flow → Direct Access Grants = ON).</p></div></div>
+  <div class="code-block"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=logistock-api" \
+  -d "client_secret=api-secret-change-me" \
+  -d "username=alice" \
+  -d "password=alice123" | jq</pre></div>
+  <div class="block checkpoint"><div class="block-header"><span class="block-icon">✅</span> Décoder le JWT</div><div class="block-body"><p>Copier l’<code>access_token</code> et le décoder sur <a href="https://jwt.io" target="_blank">jwt.io</a>. Vérifier les claims <code>sub</code>, <code>email</code>, <code>exp</code>, <code>realm_access.roles</code>.</p></div></div>
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 6 : Utiliser le Refresh Token</h3>
+  <div class="code-block"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>REFRESH_TOKEN="<votre_refresh_token>"
+curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token" \
+  -d "client_id=logistock-api" \
+  -d "client_secret=api-secret-change-me" \
+  -d "refresh_token=$REFRESH_TOKEN" | jq</pre></div>
+
+  <h3 style="font-family:'Syne',sans-serif;margin:2rem 0 1rem;">Étape 7 : Tester le SSO avec OAuth2 Proxy</h3>
+
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
+   <svg viewBox="0 0 700 500" xmlns="http://www.w3.org/2000/svg" style="background:#f8f7f4; font-family: 'Inter', monospace;">
+  <rect width="700" height="500" fill="#f8f7f4" rx="8"/>
+  <text x="350" y="30" font-size="16" font-weight="bold" fill="#1a1917" text-anchor="middle">Single Sign-On (SSO) — 1 login → 3 services</text>
+
+  <!-- En-têtes des colonnes -->
+  <rect x="40" y="60" width="160" height="30" fill="#ecfdf5" stroke="#10b981" stroke-width="1" rx="4"/>
+  <text x="120" y="80" font-size="12" font-weight="bold" fill="#065f46" text-anchor="middle">👤 Utilisateur</text>
+
+  <rect x="240" y="60" width="180" height="30" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1" rx="4"/>
+  <text x="330" y="80" font-size="12" font-weight="bold" fill="#5b21b6" text-anchor="middle">🔐 Keycloak (Session SSO)</text>
+
+  <rect x="460" y="60" width="200" height="30" fill="#fff8ed" stroke="#ff9900" stroke-width="1" rx="4"/>
+  <text x="560" y="80" font-size="12" font-weight="bold" fill="#b85c00" text-anchor="middle">📦 Services (web, api, admin)</text>
+
+  <line x1="40" y1="100" x2="660" y2="100" stroke="#e5e3df" stroke-width="1"/>
+
+  <!-- Étape 1 : Alice se connecte -->
+  <rect x="40" y="110" width="160" height="60" fill="#fff" stroke="#10b981" stroke-width="1" rx="4"/>
+  <text x="120" y="130" font-size="10" fill="#065f46" text-anchor="middle">1️⃣ Alice se connecte</text>
+  <text x="120" y="145" font-size="9" fill="#10b981" text-anchor="middle">alice / alice123</text>
+  <path d="M 200 140 L 240 140" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="220" y="130" font-size="8" fill="#10b981" text-anchor="middle">⟶</text>
+
+  <!-- Keycloak crée la session -->
+  <rect x="240" y="110" width="180" height="60" fill="#fff" stroke="#7c3aed" stroke-width="1" rx="4"/>
+  <text x="330" y="130" font-size="10" fill="#5b21b6" text-anchor="middle">2️⃣ Crée une session SSO</text>
+  <text x="330" y="145" font-size="9" fill="#7c3aed" text-anchor="middle">Cookie HttpOnly</text>
+  <text x="330" y="158" font-size="9" fill="#7c3aed" text-anchor="middle">session_id: abc-xyz</text>
+
+  <!-- Flèche vers les services -->
+  <path d="M 420 140 L 460 140" stroke="#ff9900" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="440" y="130" font-size="8" fill="#ff9900" text-anchor="middle">⟶</text>
+
+  <!-- Service 1 : web -->
+  <rect x="460" y="110" width="200" height="60" fill="#fff" stroke="#ea580c" stroke-width="1" rx="4"/>
+  <text x="560" y="130" font-size="10" fill="#c2410c" text-anchor="middle">3️⃣ Accès à logistock-web</text>
+  <text x="560" y="145" font-size="9" fill="#ea580c" text-anchor="middle">Token délivré sans re-login</text>
+  <text x="560" y="158" font-size="9" fill="#ea580c" text-anchor="middle">✅ Autorisation OK</text>
+
+  <!-- Ligne de séparation -->
+  <line x1="40" y1="190" x2="660" y2="190" stroke="#e5e3df" stroke-width="1" stroke-dasharray="4"/>
+
+  <!-- Étape 4 : accès API (pas de nouveau login) -->
+  <rect x="240" y="210" width="180" height="50" fill="#fff" stroke="#3b82f6" stroke-width="1" rx="4"/>
+  <text x="330" y="230" font-size="10" fill="#1e40af" text-anchor="middle">4️⃣ Session déjà active</text>
+  <text x="330" y="245" font-size="9" fill="#3b82f6" text-anchor="middle">Reconnaît le cookie</text>
+
+  <path d="M 420 235 L 460 235" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="440" y="225" font-size="8" fill="#3b82f6" text-anchor="middle">⟶</text>
+
+  <rect x="460" y="210" width="200" height="50" fill="#fff" stroke="#3b82f6" stroke-width="1" rx="4"/>
+  <text x="560" y="230" font-size="10" fill="#1e40af" text-anchor="middle">5️⃣ Accès à logistock-api</text>
+  <text x="560" y="245" font-size="9" fill="#3b82f6" text-anchor="middle">✅ Pas de demande de login</text>
+
+  <!-- Ligne de séparation -->
+  <line x1="40" y1="280" x2="660" y2="280" stroke="#e5e3df" stroke-width="1" stroke-dasharray="4"/>
+
+  <!-- Étape 6 : accès admin -->
+  <rect x="240" y="300" width="180" height="50" fill="#fff" stroke="#3b82f6" stroke-width="1" rx="4"/>
+  <text x="330" y="320" font-size="10" fill="#1e40af" text-anchor="middle">6️⃣ Toujours la même session</text>
+  <text x="330" y="335" font-size="9" fill="#3b82f6" text-anchor="middle">Session SSO valide</text>
+
+  <path d="M 420 325 L 460 325" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="440" y="315" font-size="8" fill="#3b82f6" text-anchor="middle">⟶</text>
+
+  <rect x="460" y="300" width="200" height="50" fill="#fff" stroke="#7c3aed" stroke-width="1" rx="4"/>
+  <text x="560" y="320" font-size="10" fill="#5b21b6" text-anchor="middle">7️⃣ Accès à logistock-admin</text>
+  <text x="560" y="335" font-size="9" fill="#7c3aed" text-anchor="middle">✅ Encore une fois, pas de login</text>
+
+  <!-- Légende -->
+  <rect x="40" y="390" width="620" height="80" fill="#fffbeb" stroke="#f59e0b" stroke-width="1" rx="4"/>
+  <text x="350" y="410" font-size="11" font-weight="bold" fill="#92400e" text-anchor="middle">💡 Comment ça marche ?</text>
+  <text x="60" y="430" font-size="9" fill="#78350f">• Keycloak crée une session SSO au premier login (cookie HttpOnly)</text>
+  <text x="60" y="445" font-size="9" fill="#78350f">• Quand Alice accède à un nouveau service, Keycloak reconnaît la session</text>
+  <text x="60" y="460" font-size="9" fill="#78350f">• Keycloak émet un nouveau token pour ce service → <strong>Sans redemander le mot de passe</strong></text>
+
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <polygon points="0 0, 8 4, 0 8" fill="#6b7280"/>
+    </marker>
+  </defs>
+</svg>
+  </div>
+
+  <div class="block tip"><div class="block-header"><span class="block-icon">🌐</span> Configuration du proxy</div><div class="block-body"><p>Assurez-vous que la variable <code>OAUTH2_PROXY_OIDC_ISSUER_URL</code> dans le docker-compose pointe vers une URL accessible depuis votre navigateur (ex: <code>http://host.docker.internal:8080/realms/logistock</code> sur Windows/Mac, ou l’IP de l’hôte).</p></div></div>
+  
+  <div class="code-block"><div class="code-header"><span class="code-lang">yaml</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div><pre>oauth2-proxy:
+  environment:
+    OAUTH2_PROXY_OIDC_ISSUER_URL: "http://host.docker.internal:8080/realms/logistock"
+    OAUTH2_PROXY_UPSTREAMS: "http://logistock-web:80"   # ou plusieurs upstreams
+    # ...</pre></div>
+  <p><strong>Test simple :</strong></p>
+  <ol>
+    <li>Ouvrir <code>http://localhost:4180</code> → redirection Keycloak.</li>
+    <li>Se connecter avec <code>alice / alice123</code> (et MFA si activé).</li>
+    <li>Redirection vers <code>http://localhost:5000</code> (page nginx).</li>
+    <li>Ouvrir <code>http://localhost:5001</code> (API) – <strong>pas de nouveau login</strong> si l’API est aussi derrière un proxy (ou si vous utilisez le même token).</li>
+  </ol>
+  <p>Pour un SSO complet entre les 3 services, déployez trois proxys (web, api, admin) avec le même <code>COOKIE_SECRET</code> et des ports différents (4180,4181,4182).</p>
+
+<!-- ATTRIBUTION DES GROUPES AUX UTILISATEURS ET DES RÔLES AUX GROUPES -->
+<div class="block warning">
+  <div class="block-header"><span class="block-icon">⚠️</span> Données manquantes – Attribuer les groupes et rôles</div>
+  <div class="block-body">
+    <p>Les utilisateurs, groupes et rôles ont été créés, mais il manque les associations :</p>
+    <ul>
+      <li>❌ Utilisateurs → groupes (ex. alice dans <code>admins</code>)</li>
+      <li>❌ Groupes → rôles (ex. le groupe <code>admins</code> possède le rôle <code>admin</code>)</li>
+    </ul>
+    <p>Exécutez les commandes PowerShell ci-dessous pour compléter la configuration.</p>
+  </div>
+</div>
+
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+  <pre><span class="cm"># 1. Récupérer le token admin (s’il n’est pas déjà en mémoire)</span>
+$tokenUrl = "http://localhost:8080/realms/master/protocol/openid-connect/token"
+$tokenBody = @{
+    client_id = "admin-cli"
+    username = "admin"
+    password = "logistockadmin"
+    grant_type = "password"
+}
+$response = Invoke-WebRequest -Uri $tokenUrl -Method Post -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
+$TOKEN = ($response.Content | ConvertFrom-Json).access_token
+Write-Host "✓ Token admin récupéré"
+
+<span class="cm"># 2. Récupérer les ID des groupes</span>
+$groupsUrl = "http://localhost:8080/admin/realms/logistock/groups"
+$groups = Invoke-WebRequest -Uri $groupsUrl -Headers @{ Authorization = "Bearer $TOKEN" } | ConvertFrom-Json
+$groupIds = @{}
+foreach ($g in $groups) { $groupIds[$g.name] = $g.id }
+
+<span class="cm"># 3. Récupérer les ID des utilisateurs</span>
+$usersUrl = "http://localhost:8080/admin/realms/logistock/users"
+$users = Invoke-WebRequest -Uri $usersUrl -Headers @{ Authorization = "Bearer $TOKEN" } | ConvertFrom-Json
+$userIds = @{}
+foreach ($u in $users) { $userIds[$u.username] = $u.id }
+
+<span class="cm"># 4. Attribuer chaque utilisateur à son groupe</span>
+$mapping = @{
+    "alice"   = "admins"
+    "bob"     = "admins"
+    "charlie" = "managers"
+    "dave"    = "developers"
+    "eve"     = "accountants"
+    "frank"   = "viewers"
+}
+
+foreach ($user in $mapping.Keys) {
+    $groupId = $groupIds[$mapping[$user]]
+    $userId = $userIds[$user]
+    $addUrl = "http://localhost:8080/admin/realms/logistock/users/$userId/groups/$groupId"
+    Invoke-WebRequest -Uri $addUrl -Method Put -Headers @{ Authorization = "Bearer $TOKEN" } | Out-Null
+    Write-Host "✓ $user → groupe $($mapping[$user])"
+}
+
+<span class="cm"># 5. Attribuer les rôles aux groupes</span>
+<span class="cm"># Récupérer les ID des rôles</span>
+$rolesUrl = "http://localhost:8080/admin/realms/logistock/roles"
+$roles = Invoke-WebRequest -Uri $rolesUrl -Headers @{ Authorization = "Bearer $TOKEN" } | ConvertFrom-Json
+$roleIds = @{}
+foreach ($r in $roles) { $roleIds[$r.name] = $r.id }
+
+<span class="cm"># Mappage groupe → rôle</span>
+$groupRoles = @{
+    "admins"      = "admin"
+    "managers"    = "stock_manager"
+    "developers"  = "developer"
+    "accountants" = "accountant"
+    "viewers"     = "viewer"
+}
+
+foreach ($groupName in $groupRoles.Keys) {
+    $groupId = $groupIds[$groupName]
+    $roleName = $groupRoles[$groupName]
+    $roleId = $roleIds[$roleName]
+    
+    <span class="cm"># URL pour ajouter un rôle à un groupe</span>
+    $addRoleUrl = "http://localhost:8080/admin/realms/logistock/groups/$groupId/role-mappings/realm"
+    $body = @(@{ id = $roleId; name = $roleName }) | ConvertTo-Json
+    Invoke-WebRequest -Uri $addRoleUrl -Method Post -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } -Body $body | Out-Null
+    Write-Host "✓ Groupe $groupName → rôle $roleName"
+}
+
+Write-Host "`n✅ Tous les utilisateurs sont maintenant dans leurs groupes et les groupes ont leurs rôles."</pre>
+</div>
+
+<div class="block checkpoint">
+  <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
+  <div class="block-body">
+    <p>Pour confirmer que les rôles sont bien présents dans le JWT, reconnectez Alice et décodez son token :</p>
+    <pre style="background:#0f1117;color:#e2e8f0;padding:0.75rem;border-radius:6px;"># Obtenir un token pour Alice
+$body = @{
+    client_id = "logistock-api"
+    client_secret = "api-secret-change-me"
+    grant_type = "password"
+    username = "alice"
+    password = "alice123"
+}
+$token = (Invoke-WebRequest -Uri "http://localhost:8080/realms/logistock/protocol/openid-connect/token" -Method Post -Body $body | ConvertFrom-Json).access_token
+Write-Host $token</pre>
+    <p>Copiez le token et décodez-le sur <a href="https://jwt.io" target="_blank">jwt.io</a>. Le champ <code>realm_access.roles</code> doit contenir <code>["admin"]</code>.</p>
+  </div>
+</div>
+
+
+  <div class="block checkpoint"><div class="block-header"><span class="block-icon">✅</span> Livrables TP1</div><div class="block-body"><ul><li>Capture console Keycloak (6 users, 4 clients)</li><li>JWT décodé avec claims</li><li>Démonstration SSO : 1 login → 3 services accessibles (via proxys)</li><li>Test refresh token</li></ul></div></div>
+
+  <div class="block warning"><div class="block-header"><span class="block-icon">🔧</span> Dépannage fréquent</div><div class="block-body"><ul><li><strong>400 Bad Request sur rôle :</strong> utiliser le script avec vérification d’existence et corps minimal.</li><li><strong>ERR_NAME_NOT_RESOLVED (keycloak) :</strong> modifier <code>OAUTH2_PROXY_OIDC_ISSUER_URL</code> avec <code>host.docker.internal</code> ou l’IP de l’hôte.</li><li><strong>Client not allowed for direct access grants :</strong> activer Direct Access Grants dans le client Keycloak.</li><li><strong>Refresh token invalide :</strong> il expire après 30 min, refaire un password grant.</li></ul></div></div>
+</div>
+
+
+  <p>Récupérer un token JWT en simulant le flow OAuth2 :</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Option 1 : Password Grant (pour tests rapides)</span>
+curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=logistock-api" \
+  -d "client_secret=api-secret-change-me" \
+  -d "username=alice" \
+  -d "password=alice123" \
+  | jq
+
+<span class="cm"># Résultat attendu : access_token, refresh_token, expires_in</span></pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Décoder le JWT</div>
+    <div class="block-body">
+      <p>Copier l'<code>access_token</code> et le décoder sur <a href="https://jwt.io" target="_blank">jwt.io</a></p>
+      <p style="margin-top:0.75rem;"><strong>Claims importants :</strong></p>
+      <ul>
+        <li><code>sub</code> : ID utilisateur (alice-uuid)</li>
+        <li><code>email</code> : alice@logistock.com</li>
+        <li><code>realm_access.roles</code> : [] (vide pour l'instant, on ajoutera en TP4)</li>
+        <li><code>exp</code> : Expiration (5 min par défaut)</li>
+        <li><code>iss</code> : http://localhost:8080/realms/logistock</li>
+      </ul>
+    </div>
+  </div>
+
+  
+
+ 
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Test SSO manuel (avec OAuth2 Proxy)</span>
+<span class="cm"># 1. Ouvrir http://localhost:4180 (Identity-Aware Proxy)</span>
+<span class="cm"># 2. Redirection automatique vers Keycloak login</span>
+<span class="cm"># 3. Se connecter : alice / alice123</span>
+<span class="cm"># 4. Redirection vers logistock-web (port 5000)</span>
+
+<span class="cm"># 5. Maintenant accéder http://localhost:5001 (API)</span>
+<span class="cm"># → Pas de re-login ! Session SSO active</span>
+
+<span class="cm"># 6. Accéder http://localhost:5002 (Admin)</span>
+<span class="cm"># → Toujours pas de re-login !</span></pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Validation SSO</div>
+    <div class="block-body">
+      <p><strong>Critères de réussite :</strong></p>
+      <ul>
+        <li>✅ Alice se connecte UNE FOIS</li>
+        <li>✅ Accès aux 3 services (web, api, admin) sans re-login</li>
+        <li>✅ Logout sur un service = logout partout</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>💡 Tester le logout :</strong> Se déconnecter de 
+      http://localhost:4180/oauth2/sign_out → vérifier que l'accès à tous les services nécessite un re-login</p>
+    </div>
+  </div>
+
+  <!-- ÉTAPE 6 : Comprendre les tokens -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 6 : Access Token vs Refresh Token (10 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> Théorie</div>
+    <div class="block-body">
+      <p><strong>Access Token :</strong></p>
+      <ul>
+        <li>Durée de vie courte (5-15 min)</li>
+        <li>Utilisé pour accéder aux ressources (API)</li>
+        <li>Contient les claims (user info, roles)</li>
+        <li>Stocké en mémoire (jamais en localStorage → risque XSS)</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Refresh Token :</strong></p>
+      <ul>
+        <li>Durée de vie longue (1h-30 jours)</li>
+        <li>Utilisé pour obtenir un nouveau access token</li>
+        <li>Stocké en HttpOnly cookie (sécurisé)</li>
+        <li>Révocable (logout)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Utiliser le refresh token pour obtenir un nouveau access token</span>
+REFRESH_TOKEN="<votre_refresh_token>"
+
+curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token" \
+  -d "client_id=logistock-api" \
+  -d "client_secret=api-secret-change-me" \
+  -d "refresh_token=$REFRESH_TOKEN" \
+  | jq
+
+<span class="cm"># Nouveau access_token + nouveau refresh_token</span></pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Livrables TP1</div>
+    <div class="block-body">
+      <p><strong>À rendre / démontrer :</strong></p>
+      <ul>
+        <li>✅ Screenshot console Keycloak (6 users, 4 clients)</li>
+        <li>✅ JWT décodé avec claims (sub, email, exp)</li>
+        <li>✅ Démonstration SSO : 1 login → 3 services accessibles</li>
+        <li>✅ Test refresh token (nouveau access token obtenu)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block warning">
+    <div class="block-header"><span class="block-icon">🔧</span> Troubleshooting</div>
+    <div class="block-body">
+      <p><strong>Problème : "Invalid redirect URI"</strong></p>
+      <ul>
+        <li>Vérifier <code>Valid Redirect URIs</code> dans client configuration</li>
+        <li>Doit inclure http://localhost:5000/* et http://localhost:4180/*</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Problème : "User not found"</strong></p>
+      <ul>
+        <li>Relancer <code>./init-scripts/init-keycloak.sh</code></li>
+        <li>Vérifier realm = "logistock" (pas "master")</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Problème : Token expired</strong></p>
+      <ul>
+        <li>Normal ! Access token expire après 5 min</li>
+        <li>Utiliser refresh token pour en obtenir un nouveau</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+<!-- TRANSITION TP1 → TP2 -->
+<div class="block tip" style="background: var(--iam-purple-bg); border-left-color: var(--iam-purple); margin: 2rem 0;">
+  <div class="block-header">
+    <span class="block-icon">🔗</span>
+    <span>Du TP1 au TP2 – Authentification ≠ Autorisation</span>
+  </div>
+  <div class="block-body">
+    <p><strong>TP1 (Keycloak)</strong> : Alice s'authentifie → obtient un <strong>JWT</strong> (prouve son identité).<br>
+    Mais ce JWT ne dit pas si elle peut <em>lire un fichier S3</em> ou <em>lancer une instance EC2</em>.</p>
+    <p><strong>TP2 (AWS IAM)</strong> : C'est le moteur d'<strong>autorisation</strong> qui répond <em>« Alice a-t-elle le droit de faire cette action sur cette ressource ? »</em><br>
+    Keycloak et IAM <strong>ne se remplacent pas</strong> : ils sont <strong>complémentaires</strong> dans toute architecture IAM moderne.</p>
+    <p style="margin-top:0.75rem; font-style:italic;">🎯 Objectif du TP2 : attacher des politiques IAM aux utilisateurs LogiStock (via groupes) pour contrôler leur accès aux ressources AWS simulées par LocalStack.</p>
+  </div>
+</div>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP2 : AWS IAM LOCALSTACK                                        -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP2 : AWS IAM LOCALSTACK                                        -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="tp2">
+  <div class="section-header">
+    <span class="section-number">TP2 · JOUR 1</span>
+    <h2>AWS IAM avec LocalStack</h2>
+    <span class="section-duration">1h30</span>
+  </div>
+
+  <!-- Transition depuis TP1 -->
+  <div class="block tip" style="background: var(--iam-purple-bg); border-left-color: var(--iam-purple); margin: 2rem 0;">
+    <div class="block-header">
+      <span class="block-icon">🔗</span>
+      <span>Du TP1 au TP2 – Authentification ≠ Autorisation</span>
+    </div>
+    <div class="block-body">
+      <p><strong>TP1 (Keycloak)</strong> : Alice s'authentifie → obtient un <strong>JWT</strong> (prouve son identité).<br>
+      Mais ce JWT ne dit pas si elle peut <em>lire un fichier S3</em> ou <em>lancer une instance EC2</em>.</p>
+      <p><strong>TP2 (AWS IAM)</strong> : C'est le moteur d'<strong>autorisation</strong> qui répond <em>« Alice a-t-elle le droit de faire cette action sur cette ressource ? »</em><br>
+      Keycloak et IAM <strong>ne se remplacent pas</strong> : ils sont <strong>complémentaires</strong> dans toute architecture IAM moderne.</p>
+      <p style="margin-top:0.75rem; font-style:italic;">🎯 Objectif du TP2 : attacher des politiques IAM aux utilisateurs LogiStock (via groupes) pour contrôler leur accès aux ressources AWS simulées par LocalStack.</p>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Objectif – Autorisation avec AWS IAM</div>
+    <div class="block-body">
+      <p><strong>Dans le TP1</strong>, vous avez centralisé l’authentification avec Keycloak (SSO, MFA, JWT).<br>
+      <strong>Dans ce TP2</strong>, vous allez gérer les <strong>permissions fines</strong> sur les ressources métier (fichiers S3, serveurs EC2).</p>
+      <p>Concrètement :</p>
+      <ul>
+        <li>Alice (CEO) pourra lire et écrire dans le bucket S3 <code>logistock-data</code>.</li>
+        <li>Frank (stagiaire) pourra seulement lire (pas modifier).</li>
+        <li>Chaque permission est définie par une <strong>politique IAM</strong> (fichier JSON) attachée à son groupe.</li>
+      </ul>
+      <p style="margin-top:0.75rem;">⚠️ <strong>Important</strong> : AWS IAM ne gère <strong>pas</strong> l’authentification des humains (c’est Keycloak). IAM gère l’autorisation une fois que l’identité est connue (via le JWT).</p>
+    </div>
+  </div>
+
+  <!-- Concepts clés -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:1.5rem 0 1rem;font-size:1.3rem;color:#ff9900;">
+    📚 Concepts clés — AWS IAM & LocalStack
+  </h3>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin:1.5rem 0;">
+    <div>
+      <div class="block tip">
+        <div class="block-header"><span class="block-icon">🏢</span> Qu'est-ce que AWS IAM ?</div>
+        <div class="block-body">
+          <p><strong>Identity and Access Management</strong> — contrôle qui peut faire quoi sur les ressources AWS :</p>
+          <ul>
+            <li><strong>Users</strong> : identités individuelles</li>
+            <li><strong>Groups</strong> : collections de users</li>
+            <li><strong>Roles</strong> : permissions réutilisables</li>
+            <li><strong>Policies</strong> : règles JSON qui autorisent/interdisent actions</li>
+          </ul>
+        </div>
+      </div>
+      <div class="block tip">
+        <div class="block-header"><span class="block-icon">🎯</span> Qu'est-ce que LocalStack ?</div>
+        <div class="block-body">
+          <p><strong>AWS mock local</strong> — simule les services AWS sur votre machine :</p>
+          <ul>
+            <li>✅ API 100% compatible avec AWS</li>
+            <li>✅ Pas besoin de compte AWS</li>
+            <li>✅ Gratuit et reproductible</li>
+          </ul>
+        </div>
+      </div>
+      <div class="block checkpoint">
+        <div class="block-header"><span class="block-icon">🔐</span> Hiérarchie IAM (Least Privilege)</div>
+        <div class="block-body">
+          <p style="font-family:'JetBrains Mono',monospace;font-size:0.9rem;background:#f3f4f6;padding:1rem;border-radius:6px;">
+            1. <strong>User</strong> alice<br/>
+            2. ↓ in <strong>Group</strong> "managers"<br/>
+            3. ↓ has <strong>Role</strong> "stock-manager"<br/>
+            4. ↓ with <strong>Policy</strong> = allow S3:GetObject on bucket/*<br/>
+            5. → alice peut lire (mais pas modifier) les fichiers S3
+          </p>
+          <p><strong>Principe :</strong> Donner juste les permissions nécessaires, rien de plus.</p>
+        </div>
+      </div>
+    </div>
+    <!-- SVG hierarchy (garder celui existant ou en mettre un simplifié) -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;">
+      <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+        <text x="200" y="25" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#1a1917" text-anchor="middle">AWS IAM Hierarchy</text>
+        <rect x="50" y="50" width="300" height="70" fill="#fff8ed" stroke="#ff9900" stroke-width="2" rx="8"/>
+        <text x="200" y="75" font-family="Syne, sans-serif" font-size="12" font-weight="700" fill="#b85c00" text-anchor="middle">USERS</text>
+        <text x="200" y="95" font-family="JetBrains Mono, monospace" font-size="9" fill="#92400e" text-anchor="middle">alice, bob, charlie, dave, eve, frank</text>
+        <path d="M 200 120 L 200 145" stroke="#ff9900" stroke-width="2" marker-end="url(#arrow2)"/>
+        <rect x="50" y="145" width="300" height="70" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="8"/>
+        <text x="200" y="170" font-family="Syne, sans-serif" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">GROUPS</text>
+        <text x="200" y="190" font-family="JetBrains Mono, monospace" font-size="8" fill="#7f1d1d" text-anchor="middle">admins, managers, developers, accountants, viewers</text>
+        <path d="M 200 215 L 200 240" stroke="#ff9900" stroke-width="2" marker-end="url(#arrow2)"/>
+        <rect x="50" y="240" width="300" height="70" fill="#f0fdf4" stroke="#22c55e" stroke-width="2" rx="8"/>
+        <text x="200" y="265" font-family="Syne, sans-serif" font-size="12" font-weight="700" fill="#15803d" text-anchor="middle">POLICIES</text>
+        <text x="200" y="285" font-family="JetBrains Mono, monospace" font-size="8" fill="#166534" text-anchor="middle">Allow/Deny on S3, EC2, …</text>
+        <defs><marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#ff9900"/></marker></defs>
+      </svg>
+    </div>
+  </div>
+
+
+    <!-- Schéma récapitulatif AuthN/AuthZ -->
+  <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1rem; margin:1.5rem 0;">
+    <svg viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto;">
+      <rect width="600" height="150" fill="#f8f7f4" rx="8"/>
+      <circle cx="60" cy="75" r="30" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+      <text x="60" y="80" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">Alice</text>
+      <line x1="90" y1="75" x2="180" y2="75" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrow-authn)"/>
+      <text x="135" y="65" font-family="Inter, sans-serif" font-size="10" fill="#5b21b6" text-anchor="middle">TP1 : Authentification</text>
+      <rect x="180" y="45" width="120" height="60" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="8"/>
+      <text x="240" y="70" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#5b21b6" text-anchor="middle">Keycloak</text>
+      <text x="240" y="88" font-family="Inter, sans-serif" font-size="8" fill="#7c3aed" text-anchor="middle">JWT (identité)</text>
+      <line x1="300" y1="75" x2="390" y2="75" stroke="#ff9900" stroke-width="3" marker-end="url(#arrow-authz)"/>
+      <text x="345" y="65" font-family="Inter, sans-serif" font-size="10" fill="#b85c00" text-anchor="middle">TP2 : Autorisation</text>
+      <rect x="390" y="45" width="150" height="60" fill="#fff8ed" stroke="#ff9900" stroke-width="2" rx="8"/>
+      <text x="465" y="68" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#b85c00" text-anchor="middle">AWS IAM</text>
+      <text x="465" y="88" font-family="Inter, sans-serif" font-size="8" fill="#ff9900" text-anchor="middle">Policies → S3/EC2</text>
+      <text x="60" y="135" font-family="Inter, sans-serif" font-size="9" fill="#6b7280">AuthN = “Qui es‑tu ?”</text>
+      <text x="280" y="135" font-family="Inter, sans-serif" font-size="9" fill="#6b7280">AuthZ = “Qu’as‑tu le droit de faire ?”</text>
+      <defs>
+        <marker id="arrow-authn" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7c3aed"/></marker>
+        <marker id="arrow-authz" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ff9900"/></marker>
+      </defs>
+    </svg>
+    <p style="text-align:center; margin-top:0.5rem; font-size:0.8rem; color:#6b6866;">
+      Keycloak (TP1) dit qui est Alice. AWS IAM (TP2) dit ce qu’elle peut faire sur les ressources.
+    </p>
+  </div>
+
+  <!-- Lancement des services (PowerShell) -->
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">⚡</span> Lancer les services (1 minute)</div>
+    <div class="block-body">
+      <p><strong>PowerShell :</strong></p>
+    </div>
+  </div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam localstack
+Start-Sleep -Seconds 45
+Invoke-WebRequest -Uri "http://localhost:4566/_localstack/health" | Select-Object -ExpandProperty Content</pre>
+  </div>
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
+    <div class="block-body">
+      <ul>
+        <li>La commande doit retourner un JSON avec <code>"services": {"iam": "running", ...}</code></li>
+        <li>Keycloak est toujours accessible sur <a href="http://localhost:8080" target="_blank">http://localhost:8080</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Setup données - Approche 1 (PowerShell manuel) -->
+  <div class="block exercise">
+    <div class="block-header"><span class="block-icon">📝</span> Setup données — Créer users IAM + groupes + bucket S3</div>
+    <div class="block-body">
+      <p>Choisissez votre approche :</p>
+    </div>
+  </div>
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">1️⃣</span> Approche 1 — Commandes PowerShell manuelles</div>
+    <div class="block-body">
+      <p>Exécutez ces commandes dans PowerShell :</p>
+    </div>
+  </div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># 1. Créer les 6 utilisateurs IAM</span>
+$users = @("alice", "bob", "charlie", "dave", "eve", "frank")
+foreach ($user in $users) {
+  docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-user --user-name $user
+  Write-Host "✓ IAM user created: $user"
+}
+
+<span class="cm"># 2. Créer les 5 groupes</span>
+$groups = @("admins", "managers", "developers", "accountants", "viewers")
+foreach ($group in $groups) {
+  docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-group --group-name $group
+  Write-Host "✓ Group created: $group"
+}
+
+<span class="cm"># 3. Créer le bucket S3</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal s3 mb s3://logistock-data
+Write-Host "✓ S3 bucket created: logistock-data"
+
+<span class="cm"># 4. Associer users aux groupes (exemple)</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam add-user-to-group --user-name alice --group-name admins
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam add-user-to-group --user-name bob --group-name admins
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam add-user-to-group --user-name charlie --group-name managers
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam add-user-to-group --user-name dave --group-name developers
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam add-user-to-group --user-name eve --group-name accountants
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam add-user-to-group --user-name frank --group-name viewers
+Write-Host "✓ Users assigned to groups"
+
+<span class="cm"># 5. Vérifier</span>
+Write-Host "`n=== USERS ===" -ForegroundColor Cyan
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam list-users</pre>
+  </div>
+
+  <div class="block exercise">
+    <div class="block-header"><span class="block-icon">2️⃣</span> Approche 2 — TP Bonus : Créez votre script</div>
+    <div class="block-body">
+      <p><strong>Défi :</strong> Écrivez un script PowerShell qui crée automatiquement users, groupes, bucket et associations.</p>
+    </div>
+  </div>
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">3️⃣</span> Approche 3 — Script fourni</div>
+    <div class="block-body">
+      <p><code>init-scripts/init-localstack.ps1</code> (disponible dans le repo)</p>
+    </div>
+  </div>
+
+  <!-- Étape 1 : Vérifier LocalStack -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 1 : Vérifier que LocalStack fonctionne (5 min)
+  </h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker ps | Select-String "localstack"
+Invoke-WebRequest -Uri "http://localhost:4566/_localstack/health" | ConvertFrom-Json | ConvertTo-Json -Depth 5</pre>
+  </div>
+
+  <!-- Étape 2 : Lister utilisateurs IAM -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 2 : Lister les utilisateurs AWS IAM (10 min)
+  </h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Lister tous les utilisateurs</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam list-users
+
+<span class="cm"># Version avec joli affichage (nécessite ConvertFrom-Json)</span>
+$usersJson = docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam list-users
+$users = $usersJson | ConvertFrom-Json
+$users.Users | Select-Object UserName, CreateDate</pre>
+  </div>
+
+  <!-- Étape 3 : Groupes IAM -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 3 : Comprendre les groupes IAM (15 min)
+  </h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Lister les groupes</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam list-groups
+
+<span class="cm"># Voir les membres du groupe admins</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam get-group --group-name admins</pre>
+  </div>
+
+  <!-- Étape 4 : Politiques managées -->
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Étape 4 : Politiques managées AWS (20 min)
+  </h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Lister les politiques AWS (beaucoup)</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam list-policies --scope AWS
+
+<span class="cm"># Chercher AdministratorAccess</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam list-policies --scope AWS | Select-String "AdministratorAccess"
+
+<span class="cm"># Obtenir le détail d'une politique</span>
+$policyArn = "arn:aws:iam::aws:policy/AdministratorAccess"
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam get-policy --policy-arn $policyArn</pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- DÉCOUVERTE DU MODE SOFT IAM (COMPORTEMENT PAR DÉFAUT)          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="block warning">
+  <div class="block-header"><span class="block-icon">⚠️</span> LocalStack en mode « soft IAM »</div>
+  <div class="block-body">
+    <p>Par défaut, LocalStack <strong>n’applique pas les politiques IAM</strong>. Tout utilisateur (même avec des clés d’accès) bénéficie des droits du compte root.  
+    Cela permet de tester rapidement sans se soucier des permissions, mais ce n’est <strong>pas sécurisé</strong>.</p>
+    <p>Nous allons d’abord <strong>observer ce comportement laxiste</strong>, puis nous activerons le mode strict pour que nos politiques IAM soient réellement respectées.</p>
+  </div>
+</div>
+
+<div class="block exercise">
+  <div class="block-header"><span class="block-icon">🔍</span> Observation : Eve a tous les droits malgré la politique</div>
+  <div class="block-body">
+    <p>Suivez les étapes ci-dessous. Vous allez créer un utilisateur IAM (<strong>eve</strong>), un groupe, une politique <strong>lecture seule</strong> sur un bucket S3, puis constater qu’Eve peut <strong>quand même écrire et lister tous les buckets</strong>.</p>
+  </div>
+</div>
+
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+  <pre><span class="cm"># 1. Créer l'utilisateur Eve, le groupe "accountants" et le bucket</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-user --user-name eve
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-group --group-name accountants
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal s3 mb s3://logistock-data
+
+<span class="cm"># 2. Créer une politique de lecture seule sur le bucket</span>
+$policyJson = @'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::logistock-data", "arn:aws:s3:::logistock-data/*"]
+    }
+  ]
+}
+'@
+$policyJsonEscaped = $policyJson -replace '"', '\"'
+$policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-policy --policy-name LogistockReadOnly --policy-document "$policyJsonEscaped"
+
+<span class="cm"># 3. Attacher la politique au groupe "accountants" et y mettre Eve</span>
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam attach-group-policy --group-name accountants --policy-arn arn:aws:iam::000000000000:policy/LogistockReadOnly
+docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam add-user-to-group --user-name eve --group-name accountants
+
+<span class="cm"># 4. Créer des clés d'accès pour Eve</span>
+$accessKeys = docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-access-key --user-name eve
+$accessKeysJson = $accessKeys | ConvertFrom-Json
+$EVE_ACCESS_KEY = $accessKeysJson.AccessKey.AccessKeyId
+$EVE_SECRET_KEY = $accessKeysJson.AccessKey.SecretAccessKey
+
+<span class="cm"># 5. Tester : Eve (en théorie) ne devrait pouvoir que lire le bucket. En pratique (mode soft) :</span>
+Write-Host "❌ Test 1 : Lister tous les buckets – devrait être interdit" -ForegroundColor Red
+docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCESS_KEY -e AWS_SECRET_ACCESS_KEY=$EVE_SECRET_KEY localstack awslocal s3 ls
+
+Write-Host "❌ Test 2 : Écrire un fichier – devrait être interdit" -ForegroundColor Red
+"contenu secret" | docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCESS_KEY -e AWS_SECRET_ACCESS_KEY=$EVE_SECRET_KEY localstack awslocal s3 cp - s3://logistock-data/secret.txt
+
+Write-Host "✅ Test 3 : Lire le bucket – autorisé (seul droit normalement accordé)" -ForegroundColor Green
+docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCESS_KEY -e AWS_SECRET_ACCESS_KEY=$EVE_SECRET_KEY localstack awslocal s3 ls s3://logistock-data
+
+<span class="cm"># Les deux premiers tests réussissent (pas de AccessDenied) ⇒ mode SOFT actif !</span></pre>
+</div>
+
+<div class="block checkpoint">
+  <div class="block-header"><span class="block-icon">📌</span> Constat</div>
+  <div class="block-body">
+    <p>Vous venez de voir qu’Eve a pu <strong>lister tous les buckets</strong> et <strong>écrire un fichier</strong> alors que la politique ne lui autorise que la lecture du bucket <code>logistock-data</code>.  
+    C’est le comportement du mode « soft IAM » de LocalStack.</p>
+    <p>Passons maintenant en <strong>mode strict</strong> pour que les politiques soient enfin respectées.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ACTIVATION DU MODE STRICT IAM                                   -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="block tip">
+  <div class="block-header"><span class="block-icon">🔧</span> Activer le mode strict IAM</div>
+  <div class="block-body">
+    <p>Pour que LocalStack <strong>applique réellement les politiques</strong>, vous devez ajouter la variable d’environnement <code>IAM_SOFT_MODE=0</code> au conteneur LocalStack.</p>
+  </div>
+</div>
+
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+  <pre><span class="cm"># 1. Arrêter LocalStack</span>
+docker-compose -f docker-compose-iam.yml stop localstack
+
+<span class="cm"># 2. Ouvrir le fichier docker-compose-iam.yml avec un éditeur et, dans la section environment du service localstack, ajouter :</span>
+<span class="cm">#    IAM_SOFT_MODE: "0"</span>
+
+<span class="cm"># 3. Redémarrer LocalStack</span>
+docker-compose -f docker-compose-iam.yml up -d localstack
+Start-Sleep -Seconds 30
+
+<span class="cm"># 4. Vérifier que le conteneur est sain</span>
+docker logs logistock_localstack --tail 20
+
+<span class="cm"># 5. Recréer l'utilisateur, le groupe, le bucket et la politique (comme précédemment)</span>
+<span class="cm">#    (les commandes sont les mêmes, vous pouvez les réexécuter)</span>
+
+<span class="cm"># 6. Répéter les tests avec les clés d'Eve</span>
+Write-Host "Test 1 : Lister tous les buckets – doit échouer (AccessDenied)" -ForegroundColor Cyan
+docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCESS_KEY -e AWS_SECRET_ACCESS_KEY=$EVE_SECRET_KEY localstack awslocal s3 ls
+
+Write-Host "Test 2 : Écrire un fichier – doit échouer (AccessDenied)" -ForegroundColor Cyan
+"test" | docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCESS_KEY -e AWS_SECRET_ACCESS_KEY=$EVE_SECRET_KEY localstack awslocal s3 cp - s3://logistock-data/test-eve.txt
+
+Write-Host "Test 3 : Lire le bucket – doit réussir" -ForegroundColor Cyan
+docker-compose -f docker-compose-iam.yml exec -T -e AWS_ACCESS_KEY_ID=$EVE_ACCESS_KEY -e AWS_SECRET_ACCESS_KEY=$EVE_SECRET_KEY localstack awslocal s3 ls s3://logistock-data</pre>
+</div>
+
+<div class="block checkpoint">
+  <div class="block-header"><span class="block-icon">✅</span> Conclusion</div>
+  <div class="block-body">
+    <ul>
+      <li>Le mode <strong>soft</strong> (<code>IAM_SOFT_MODE=1</code> par défaut) désactive le contrôle IAM – utile pour du prototypage rapide.</li>
+      <li>Le mode <strong>strict</strong> (<code>IAM_SOFT_MODE=0</code>) force le respect des politiques – <strong>indispensable en formation pour comprendre IAM</strong>.</li>
+      <li>Dans la suite du TP, nous travaillerons <strong>en mode strict</strong> pour que vos exercices de permissions aient du sens.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="block warning">
+  <div class="block-header"><span class="block-icon">⚠️</span> Limitation de LocalStack Community</div>
+  <div class="block-body">
+    <p>La version gratuite de LocalStack ne supporte pas les opérations IAM (création d’utilisateurs, groupes, politiques).  
+    Pour une mise en pratique complète, vous devez utiliser un <strong>compte AWS réel</strong> (gratuit pour 12 mois).</p>
+    <p>Les commandes ci‑dessous sont à exécuter avec AWS CLI après avoir configuré vos credentials.</p>
+  </div>
+</div>
+
+<!-- ÉTAPE 5 : CRÉER UNE POLITIQUE CUSTOM (POWERSHELL) -->
+<h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+  Étape 5 : Créer une politique custom (25 min)
+</h3>
+
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+  <pre><span class="cm"># 1. Définir le JSON de la politique</span>
+$policyJson = @'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListLogistockBuckets",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::logistock-data"
+    },
+    {
+      "Sid": "ReadLogistockObjects",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::logistock-data/*"
+    }
+  ]
+}
+'@
+
+<span class="cm"># 2. Échapper les guillemets doubles pour la ligne de commande</span>
+$policyJsonEscaped = $policyJson -replace '"', '\"'
+
+<span class="cm"># 3. Créer la politique dans AWS IAM (via stdin)</span>
+$policyJsonEscaped | docker-compose -f docker-compose-iam.yml exec -T localstack awslocal iam create-policy `
+  --policy-name LogistockS3ReadData `
+  --policy-document "$policyJsonEscaped"
+
+<span class="cm"># Résultat attendu : retour JSON avec PolicyName, Arn, etc.</span>
+<span class="cm"># Notez l'Arn : arn:aws:iam::000000000000:policy/LogistockS3ReadData</span></pre>
+</div>
+
+<div class="block tip">
+  <div class="block-header"><span class="block-icon">💡</span> Explication de la commande</div>
+  <div class="block-body">
+    <ul>
+      <li>Le JSON est défini dans un <strong>here-string</strong> (<code>@' ... '@</code>) pour conserver les retours à la ligne.</li>
+      <li>L’instruction <code>-replace '"', '\"'</code> échappe chaque guillemet double afin qu’il soit interprété correctement par la ligne de commande.</li>
+      <li>Le JSON échappé est envoyé via <strong>stdin</strong> à <code>awslocal</code>, évitant ainsi les problèmes de fichier manquant dans le conteneur.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="block checkpoint">
+  <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
+  <div class="block-body">
+    <p>La commande doit retourner un objet JSON contenant les informations de la politique :</p>
+    <pre style="background:#0f1117;color:#e2e8f0;padding:0.75rem;border-radius:6px;">
+{
+  "Policy": {
+    "PolicyName": "LogistockS3ReadData",
+    "Arn": "arn:aws:iam::000000000000:policy/LogistockS3ReadData",
+    ...
+  }
+}</pre>
+  </div>
+</div>
+
+<div class="block warning">
+  <div class="block-header"><span class="block-icon">🔧</span> Dépannage</div>
+  <div class="block-body">
+    <p><strong>Erreur <code>MalformedPolicyDocument</code></strong> :</p>
+    <ul>
+      <li>Vérifiez que le JSON est valide (pas de virgule en trop, guillemets équilibrés).</li>
+      <li>Assurez-vous que les retours à la ligne sont présents (ne compactez pas le JSON).</li>
+    </ul>
+    <p><strong>Erreur <code>Unable to load paramfile</code></strong> :</p>
+    <ul>
+      <li>Ne pas utiliser <code>file://</code> : la méthode ci-dessus passe le contenu directement sans fichier.</li>
+    </ul>
+  </div>
+</div>
+
+
+  <!-- Livrables -->
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Livrables TP2</div>
+    <div class="block-body">
+      <ul>
+        <li>✅ Liste des 6 utilisateurs IAM</li>
+        <li>✅ Liste des 5 groupes + leurs membres</li>
+        <li>✅ Contenu JSON d'une politique custom (LogistockS3ReadData)</li>
+        <li>✅ Test permissions : Eve peut lire S3 mais pas écrire</li>
+        <li>✅ Screenshot erreur "AccessDenied" quand Eve essaie d'écrire</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Troubleshooting -->
+  <div class="block warning">
+    <div class="block-header"><span class="block-icon">🔧</span> Troubleshooting</div>
+    <div class="block-body">
+      <p><strong>Problème : "Could not connect to the endpoint URL"</strong></p>
+      <ul>
+        <li>Vérifier que LocalStack tourne : <code>docker ps | Select-String "localstack"</code></li>
+        <li>Redémarrer LocalStack : <code>docker-compose -f docker-compose-iam.yml restart localstack</code></li>
+      </ul>
+      <p><strong>Problème : "The user with name X cannot be found"</strong></p>
+      <ul>
+        <li>Attendre 10 secondes après le démarrage de LocalStack</li>
+        <li>Relancer les commandes de création</li>
+      </ul>
+      <p><strong>Problème : Politique JSON invalide</strong></p>
+      <ul>
+        <li>Valider le JSON avec <code>Get-Content s3-read-logistock-policy.json | ConvertFrom-Json</code></li>
+      </ul>
+    </div>
+  </div>
+
+
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP3 : MFA + SÉCURITÉ OAUTH2                                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="tp3">
+  <div class="section-header">
+    <span class="section-number">TP3 · JOUR 1</span>
+    <h2>MFA + Sécurité OAuth2</h2>
+    <span class="section-duration">2h30</span>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Objectif</div>
+    <div class="block-body">
+      <p><strong>Renforcer la sécurité</strong> de l'authentification LogiStock avec MFA (Multi-Factor Authentication), 
+      PKCE (Proof Key for Code Exchange), et bonnes pratiques OAuth2.</p>
+      <p style="margin-top:0.75rem;"><strong>Concepts couverts :</strong> MFA (TOTP), PKCE, Client credentials, 
+      Token validation, Security headers, CORS.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 1 : Configurer MFA avec Keycloak (45 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> Qu'est-ce que MFA ?</div>
+    <div class="block-body">
+      <p><strong>Multi-Factor Authentication :</strong> Authentification par plusieurs facteurs indépendants.</p>
+      <ul>
+        <li><strong>Something you know :</strong> Mot de passe</li>
+        <li><strong>Something you have :</strong> Téléphone (TOTP app)</li>
+        <li><strong>Something you are :</strong> Biométrie (empreinte, visage)</li>
+      </ul>
+      <p style="margin-top:0.75rem;">Pour LogiStock, on va utiliser <strong>TOTP</strong> (Time-based One-Time Password) 
+      avec Google Authenticator ou Authy.</p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">keycloak</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Dans Keycloak console (realm logistock)</span>
+<span class="cm"># Menu : Authentication → Required Actions</span>
+
+<span class="cm"># 1. Activer "Configure OTP"</span>
+<span class="cm">#    → Enabled : ON</span>
+<span class="cm">#    → Default Action : ON (obligatoire au premier login)</span>
+
+<span class="cm"># 2. Menu : Authentication → Flows</span>
+<span class="cm">#    → Browser Flow</span>
+<span class="cm">#    → Dupliquer le flow (bouton Copy)</span>
+<span class="cm">#    → Nom : "Browser with MFA"</span>
+
+<span class="cm"># 3. Modifier le flow "Browser with MFA"</span>
+<span class="cm">#    → OTP Form : REQUIRED (pas conditional)</span>
+
+<span class="cm"># 4. Menu : Authentication → Bindings</span>
+<span class="cm">#    → Browser Flow : "Browser with MFA"</span></pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Test MFA</div>
+    <div class="block-body">
+      <p><strong>Se reconnecter avec Alice :</strong></p>
+      <ol>
+        <li>Logout de http://localhost:8080/realms/logistock/account</li>
+        <li>Re-login : alice / alice123</li>
+        <li>Keycloak demande de scanner le QR code avec Google Authenticator</li>
+        <li>Scanner le QR, entrer le code TOTP à 6 chiffres</li>
+        <li>✅ Connexion réussie avec MFA activé</li>
+      </ol>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 2 : Implémenter PKCE (45 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> Qu'est-ce que PKCE ?</div>
+    <div class="block-body">
+      <p><strong>PKCE (RFC 7636) :</strong> Protection contre les attaques "Authorization Code Interception".</p>
+      <p style="margin-top:0.75rem;"><strong>Problème sans PKCE :</strong> Un attaquant qui intercepte l'authorization code 
+      peut l'échanger contre un token.</p>
+      <p style="margin-top:0.75rem;"><strong>Solution PKCE :</strong> Le client génère un <code>code_verifier</code> aléatoire, 
+      calcule son hash SHA256 (<code>code_challenge</code>), et l'envoie avec la requête. Keycloak vérifie que le 
+      <code>code_verifier</code> final correspond.</p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Générer code_verifier et code_challenge</span>
+CODE_VERIFIER=$(openssl rand -base64 32 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+CODE_CHALLENGE=$(echo -n "$CODE_VERIFIER" | openssl dgst -sha256 -binary | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+
+echo "Code Verifier: $CODE_VERIFIER"
+echo "Code Challenge: $CODE_CHALLENGE"
+
+<span class="cm"># 1. Authorization Request (avec PKCE)</span>
+<span class="cm"># Ouvrir dans un navigateur :</span>
+http://localhost:8080/realms/logistock/protocol/openid-connect/auth?\
+client_id=logistock-web&\
+response_type=code&\
+redirect_uri=http://localhost:5000/callback&\
+code_challenge=$CODE_CHALLENGE&\
+code_challenge_method=S256
+
+<span class="cm"># 2. Après login, récupérer le code dans l'URL de redirection</span>
+<span class="cm"># http://localhost:5000/callback?code=XXXX</span>
+
+<span class="cm"># 3. Échanger le code contre un token (avec code_verifier)</span>
+curl -X POST "http://localhost:8080/realms/logistock/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "client_id=logistock-web" \
+  -d "code=XXXX" \
+  -d "redirect_uri=http://localhost:5000/callback" \
+  -d "code_verifier=$CODE_VERIFIER" \
+  | jq</pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 3 : Valider les tokens JWT (30 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">⚠️</span> CRITICAL : Toujours valider les JWT</div>
+    <div class="block-body">
+      <p><strong>Danger :</strong> Un JWT peut être modifié côté client. L'API backend DOIT vérifier :</p>
+      <ul>
+        <li>✅ Signature (avec clé publique Keycloak)</li>
+        <li>✅ Expiration (<code>exp</code>)</li>
+        <li>✅ Issuer (<code>iss</code> = http://localhost:8080/realms/logistock)</li>
+        <li>✅ Audience (<code>aud</code>)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">python</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Exemple validation JWT en Python (avec PyJWT)</span>
+<span class="kw">import</span> jwt
+<span class="kw">import</span> requests
+
+<span class="cm"># 1. Récupérer la clé publique Keycloak (JWKS)</span>
+jwks_url = <span class="st">"http://localhost:8080/realms/logistock/protocol/openid-connect/certs"</span>
+jwks = requests.get(jwks_url).json()
+
+<span class="cm"># 2. Extraire la clé publique</span>
+<span class="kw">from</span> jwt.algorithms <span class="kw">import</span> RSAAlgorithm
+public_key = RSAAlgorithm.from_jwk(jwks[<span class="st">'keys'</span>][<span class="cm">0</span>])
+
+<span class="cm"># 3. Valider le JWT</span>
+token = <span class="st">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."</span>
+
+<span class="kw">try</span>:
+    decoded = jwt.decode(
+        token,
+        public_key,
+        algorithms=[<span class="st">"RS256"</span>],
+        audience=<span class="st">"logistock"</span>,
+        issuer=<span class="st">"http://localhost:8080/realms/logistock"</span>
+    )
+    <span class="kw">print</span>(<span class="st">"✅ Token valide :"</span>, decoded)
+<span class="kw">except</span> jwt.ExpiredSignatureError:
+    <span class="kw">print</span>(<span class="st">"❌ Token expiré"</span>)
+<span class="kw">except</span> jwt.InvalidTokenError:
+    <span class="kw">print</span>(<span class="st">"❌ Token invalide"</span>)</pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 4 : Sécuriser avec CORS et Security Headers (30 min)
+  </h3>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">nginx</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Configuration NGINX pour logistock-api</span>
+<span class="kw">server</span> {
+    <span class="kw">listen</span> 5001;
+    
+    <span class="cm"># CORS headers</span>
+    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Origin'</span> <span class="st">'http://localhost:5000'</span>;
+    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Credentials'</span> <span class="st">'true'</span>;
+    <span class="kw">add_header</span> <span class="st">'Access-Control-Allow-Methods'</span> <span class="st">'GET, POST, PUT, DELETE'</span>;
+    
+    <span class="cm"># Security headers</span>
+    <span class="kw">add_header</span> <span class="st">'X-Frame-Options'</span> <span class="st">'DENY'</span>;
+    <span class="kw">add_header</span> <span class="st">'X-Content-Type-Options'</span> <span class="st">'nosniff'</span>;
+    <span class="kw">add_header</span> <span class="st">'Strict-Transport-Security'</span> <span class="st">'max-age=31536000'</span>;
+    <span class="kw">add_header</span> <span class="st">'Content-Security-Policy'</span> <span class="st">"default-src 'self'"</span>;
+}</pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Livrables TP3</div>
+    <div class="block-body">
+      <ul>
+        <li>✅ MFA configuré (screenshot QR code)</li>
+        <li>✅ Login Alice avec TOTP (6 chiffres)</li>
+        <li>✅ PKCE flow testé (code_verifier/code_challenge)</li>
+        <li>✅ JWT validation Python script</li>
+        <li>✅ CORS + Security headers configurés</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP4 : RBAC/ABAC OPA                                            -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="tp4">
+  <div class="section-header">
+    <span class="section-number">TP4 · JOUR 2</span>
+    <h2>RBAC/ABAC avec OPA</h2>
+    <span class="section-duration">1h30</span>
+  </div>
+
+  
+  <div class="block tip">
+    <!-- TP4 : CONCEPTS CLÉS — RBAC VS ABAC                             -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:1.5rem 0 1rem;font-size:1.3rem;color:#3b82f6;">
+  📚 Concepts clés — RBAC vs ABAC avec OPA
+</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin:1.5rem 0;">
+
+  <!-- Texte -->
+  <div>
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">🎭</span> RBAC (Role-Based Access Control)</div>
+      <div class="block-body">
+        <p><strong>Permissions basées sur le RÔLE</strong> :</p>
+        <ul style="margin-top:0.75rem;">
+          <li>IF user.role == "stock_manager" → allow update_stock</li>
+          <li>Simple et prévisible</li>
+          <li>Mais inflexible (pas de contexte)</li>
+        </ul>
+        <p style="margin-top:0.75rem;color:#6b7280;font-size:0.9rem;">
+          <strong>Problème :</strong> manager ne peut éditer stock que entre 9h-17h pendant jours ouvrables ?
+        </p>
+      </div>
+    </div>
+
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">🔍</span> ABAC (Attribute-Based Access Control)</div>
+      <div class="block-body">
+        <p><strong>Permissions basées sur les ATTRIBUTS</strong> :</p>
+        <ul style="margin-top:0.75rem;">
+          <li>IF user.role == "manager" AND user.department == "stock" AND current_time between 9h-17h AND user.location == "office" → allow</li>
+          <li>Très flexible et précis</li>
+          <li>Complexe à maintenir</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block checkpoint">
+      <div class="block-header"><span class="block-icon">🤖</span> Qu'est-ce que OPA (Open Policy Agent) ?</div>
+      <div class="block-body">
+        <p><strong>Policy Engine</strong> — moteur décisionnel universel :</p>
+        <ul style="margin-top:0.75rem;">
+          <li>🔧 Language : <strong>Rego</strong> (syntaxe déclarative)</li>
+          <li>📜 Policies = fichiers .rego</li>
+          <li>🔄 Évalue requêtes → accept/deny</li>
+          <li>🎯 Agnostique : fonctionne partout (Kubernetes, API, etc.)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">⚙️</span> Pourquoi 4 conteneurs ?</div>
+      <div class="block-body">
+        <ul>
+          <li><strong>Keycloak</strong> = auth</li>
+          <li><strong>LocalStack</strong> = resources (S3, etc.)</li>
+          <li><strong>OPA</strong> = <strong>policy engine</strong> (nouveau!)</li>
+          <li><strong>PostgreSQL</strong> = persistance</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SVG Comparison -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+      <text x="200" y="25" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#1a1917" text-anchor="middle">
+        RBAC vs ABAC
+      </text>
+
+      <!-- RBAC Side -->
+      <rect x="20" y="50" width="170" height="420" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="8"/>
+      <text x="105" y="75" font-family="Syne, sans-serif" font-size="13" font-weight="700" fill="#1e40af" text-anchor="middle">RBAC</text>
+      <text x="105" y="92" font-family="Inter, sans-serif" font-size="9" fill="#2563eb" text-anchor="middle">(Simple)</text>
+
+      <rect x="30" y="110" width="150" height="60" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" rx="4"/>
+      <text x="105" y="130" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e40af" text-anchor="middle">IF role == "manager"</text>
+      <text x="105" y="148" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e40af" text-anchor="middle">THEN allow</text>
+
+      <text x="35" y="190" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#1e40af">✓ Pros:</text>
+      <text x="35" y="210" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">• Simple</text>
+      <text x="35" y="225" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">• Facile à entendre</text>
+      <text x="35" y="240" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">• Performance OK</text>
+
+      <text x="35" y="270" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#dc2626">✗ Cons:</text>
+      <text x="35" y="290" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Inflexible</text>
+      <text x="35" y="305" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Pas de contexte</text>
+      <text x="35" y="320" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Création rôles explosive</text>
+      <text x="35" y="335" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">(rôle x dept x location...)</text>
+
+      <text x="35" y="365" font-family="Inter, sans-serif" font-size="9" fill="#374151" style="font-style:italic;">
+        Exemple: manager ne peut<br/>
+        modifier que entre 9h-17h ?<br/>
+        Impossible avec RBAC.
+      </text>
+
+      <!-- ABAC Side -->
+      <rect x="210" y="50" width="170" height="420" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="8"/>
+      <text x="295" y="75" font-family="Syne, sans-serif" font-size="13" font-weight="700" fill="#5b21b6" text-anchor="middle">ABAC</text>
+      <text x="295" y="92" font-family="Inter, sans-serif" font-size="9" fill="#7c3aed" text-anchor="middle">(Puissant)</text>
+
+      <rect x="220" y="110" width="150" height="75" fill="#f3e8ff" stroke="#7c3aed" stroke-width="1" rx="4"/>
+      <text x="295" y="128" font-family="JetBrains Mono, monospace" font-size="8" fill="#5b21b6" text-anchor="middle">IF user.role=="manager"</text>
+      <text x="295" y="142" font-family="JetBrains Mono, monospace" font-size="8" fill="#5b21b6" text-anchor="middle">AND time between 9h-17h</text>
+      <text x="295" y="156" font-family="JetBrains Mono, monospace" font-size="8" fill="#5b21b6" text-anchor="middle">AND user.office == true</text>
+      <text x="295" y="170" font-family="JetBrains Mono, monospace" font-size="8" fill="#5b21b6" text-anchor="middle">THEN allow</text>
+
+      <text x="225" y="205" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#5b21b6">✓ Pros:</text>
+      <text x="225" y="225" font-family="Inter, sans-serif" font-size="8" fill="#6b21a8">• Ultra-flexible</text>
+      <text x="225" y="240" font-family="Inter, sans-serif" font-size="8" fill="#6b21a8">• Contexte riche</text>
+      <text x="225" y="255" font-family="Inter, sans-serif" font-size="8" fill="#6b21a8">• Moins de rôles</text>
+
+      <text x="225" y="285" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#dc2626">✗ Cons:</text>
+      <text x="225" y="305" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Complexe</text>
+      <text x="225" y="320" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Difficile à maintenir</text>
+      <text x="225" y="335" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Performance variable</text>
+
+      <text x="225" y="365" font-family="Inter, sans-serif" font-size="9" fill="#374151" style="font-style:italic;">
+        Avec ABAC: cas<br/>
+        complexes = 1 policy<br/>
+        réutilisable partout
+      </text>
+    </svg>
+  </div>
+
+</div>
+
+---
+
+<!-- ══════════════════════════════════════════════════════════
+
+  <div class="block-header"><span class="block-icon">⚡</span> Lancer les services (1.5 minute)</div>
+    <div class="block-body">
+      <p><strong>PowerShell (Windows) :</strong></p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam localstack opa
+Start-Sleep -Seconds 60
+curl http://localhost:8181/health</pre>
+  </div>
+
+  <div class="block-body" style="margin-top:1rem;">
+    <p><strong>Bash (Linux/macOS) :</strong></p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam localstack opa
+sleep 60
+curl http://localhost:8181/health</pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
+    <div class="block-body">
+      <ul>
+        <li>OPA health : <code>{}</code></li>
+        <li>Tous les services prêts ✅</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block exercise">
+    <div class="block-header"><span class="block-icon">📝</span> Setup données — Charger les policies OPA</div>
+    <div class="block-body">
+      <p>Choisissez votre approche pour charger les policies OPA :</p>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">1️⃣</span> Approche 1 — Commandes manuelles</div>
+    <div class="block-body"><p><strong>PowerShell (Windows) :</strong></p></div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># 1. Lire les policies</span>
+$rbacPolicy = Get-Content "policies/rbac.rego" -Raw
+$abacPolicy = Get-Content "policies/abac.rego" -Raw
+
+<span class="cm"># 2. Charger la policy RBAC</span>
+$rbacUrl = "http://localhost:8181/v1/policies/rbac"
+Invoke-WebRequest -Uri $rbacUrl -Method Put `
+  -Headers @{ "Content-Type" = "text/plain" } `
+  -Body $rbacPolicy | Out-Null
+
+Write-Host "✓ RBAC policy loaded"
+
+<span class="cm"># 3. Charger la policy ABAC</span>
+$abacUrl = "http://localhost:8181/v1/policies/abac"
+Invoke-WebRequest -Uri $abacUrl -Method Put `
+  -Headers @{ "Content-Type" = "text/plain" } `
+  -Body $abacPolicy | Out-Null
+
+Write-Host "✓ ABAC policy loaded"
+Write-Host ""
+Write-Host "✅ Policies chargées dans OPA!"</pre>
+  </div>
+
+  <div class="block-body" style="margin-top:1rem;">
+    <p><strong>Bash (Linux/macOS) :</strong></p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Charger la policy RBAC</span>
+curl -X PUT "http://localhost:8181/v1/policies/rbac" \
+  -H "Content-Type: text/plain" \
+  -d @policies/rbac.rego
+
+<span class="cm"># Charger la policy ABAC</span>
+curl -X PUT "http://localhost:8181/v1/policies/abac" \
+  -H "Content-Type: text/plain" \
+  -d @policies/abac.rego
+
+echo "✓ Policies chargées dans OPA"</pre>
+  </div>
+
+  <div class="block exercise">
+    <div class="block-header"><span class="block-icon">2️⃣</span> Approche 2 — TP Bonus : Créez votre script</div>
+    <div class="block-body">
+      <p><strong>Défi :</strong> Écrivez un script qui charge les policies OPA</p>
+      <p style="margin-top:0.75rem;"><strong>Indices :</strong></p>
+      <ul>
+        <li>Lire les fichiers policies/rbac.rego et policies/abac.rego</li>
+        <li>Envoyer chacun via curl PUT à http://localhost:8181/v1/policies/</li>
+        <li>Afficher les confirmations</li>
+      </ul>
+    </div>
+  </div>
+    <div class="block-header"><span class="block-icon">3️⃣</span> Approche 3 — Solution</div>
+    <div class="block-body">
+      <p>Les policies sont dans le repo. Lancez les commandes de l'Approche 1 ci-dessus.</p>
+    </div>
+  </div>
+
+<div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Objectif</div>
+    <div class="block-body">
+      <p><strong>Implémenter RBAC et ABAC</strong> avec Open Policy Agent (OPA) pour contrôler l'accès granulaire 
+      aux ressources LogiStock selon les rôles et attributs utilisateurs.</p>
+      <p style="margin-top:0.75rem;"><strong>Concepts couverts :</strong> RBAC (roles), ABAC (attributes), 
+      Rego policies, Policy evaluation, Time/Location-based rules.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 1 : Comprendre RBAC vs ABAC (20 min)
+  </h3>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
+    <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+      <rect width="800" height="450" fill="#f8f7f4"/>
+      <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">RBAC vs ABAC</text>
+      
+      <!-- RBAC Side -->
+      <rect x="30" y="50" width="360" height="360" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" rx="8"/>
+      <text x="210" y="80" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#1e40af" text-anchor="middle">RBAC</text>
+      <text x="210" y="100" font-family="Inter, sans-serif" font-size="10" fill="#1e3a8a" text-anchor="middle">Role-Based Access Control</text>
+      
+      <text x="50" y="130" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e40af">Principe :</text>
+      <text x="50" y="150" font-family="Inter, sans-serif" font-size="9" fill="#1e3a8a">Permissions basées sur le <strong>rôle</strong></text>
+      
+      <rect x="50" y="170" width="320" height="110" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" rx="4"/>
+      <text x="60" y="190" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a">IF user.role == "stock_manager"</text>
+      <text x="70" y="205" font-family="JetBrains Mono, monospace" font-size="9" fill="#1e3a8a">THEN allow update_stock</text>
+      <text x="60" y="230" font-family="Inter, sans-serif" font-size="8" fill="#1e40af">Exemple :</text>
+      <text x="60" y="245" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">✅ Charlie (stock_manager)</text>
+      <text x="60" y="258" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">   → Peut modifier stocks</text>
+      <text x="60" y="271" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">❌ Frank (viewer)</text>
+      <text x="60" y="284" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">   → Lecture seule</text>
+      
+      <text x="50" y="310" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#10b981">✅ Avantages :</text>
+      <text x="60" y="327" font-family="Inter, sans-serif" font-size="8" fill="#065f46">• Simple à comprendre</text>
+      <text x="60" y="340" font-family="Inter, sans-serif" font-size="8" fill="#065f46">• Facile à auditer</text>
+      <text x="60" y="353" font-family="Inter, sans-serif" font-size="8" fill="#065f46">• Performance excellente</text>
+      
+      <text x="50" y="375" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#dc2626">❌ Limites :</text>
+      <text x="60" y="392" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Pas de contexte (heure, lieu)</text>
+      
+      <!-- ABAC Side -->
+      <rect x="410" y="50" width="360" height="360" fill="#f5f3ff" stroke="#7c3aed" stroke-width="3" rx="8"/>
+      <text x="590" y="80" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#5b21b6" text-anchor="middle">ABAC</text>
+      <text x="590" y="100" font-family="Inter, sans-serif" font-size="10" fill="#6b21a8" text-anchor="middle">Attribute-Based Access Control</text>
+      
+      <text x="430" y="130" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#5b21b6">Principe :</text>
+      <text x="430" y="150" font-family="Inter, sans-serif" font-size="9" fill="#6b21a8">Permissions basées sur <strong>attributs + contexte</strong></text>
+      
+      <rect x="430" y="170" width="320" height="110" fill="#ede9fe" stroke="#7c3aed" stroke-width="1" rx="4"/>
+      <text x="440" y="190" font-family="JetBrains Mono, monospace" font-size="9" fill="#6b21a8">IF user.role == "stock_manager"</text>
+      <text x="445" y="205" font-family="JetBrains Mono, monospace" font-size="9" fill="#6b21a8">AND time.hour >= 9 AND time.hour < 18</text>
+      <text x="445" y="220" font-family="JetBrains Mono, monospace" font-size="9" fill="#6b21a8">AND network == "corporate"</text>
+      <text x="450" y="235" font-family="JetBrains Mono, monospace" font-size="9" fill="#6b21a8">THEN allow update_stock</text>
+      
+      <text x="440" y="255" font-family="Inter, sans-serif" font-size="8" fill="#5b21b6">Exemple :</text>
+      <text x="440" y="270" font-family="Inter, sans-serif" font-size="8" fill="#6b21a8">✅ Charlie à 14h depuis bureau → OK</text>
+      <text x="440" y="283" font-family="Inter, sans-serif" font-size="8" fill="#6b21a8">❌ Charlie à 22h → REFUSÉ</text>
+      
+      <text x="430" y="310" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#10b981">✅ Avantages :</text>
+      <text x="440" y="327" font-family="Inter, sans-serif" font-size="8" fill="#065f46">• Granularité maximale</text>
+      <text x="440" y="340" font-family="Inter, sans-serif" font-size="8" fill="#065f46">• Context-aware (time, location)</text>
+      <text x="440" y="353" font-family="Inter, sans-serif" font-size="8" fill="#065f46">• Sécurité renforcée</text>
+      
+      <text x="430" y="375" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#dc2626">❌ Limites :</text>
+      <text x="440" y="392" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">• Plus complexe à gérer</text>
+      
+      <!-- Bottom recommendation -->
+      <rect x="50" y="420" width="700" height="20" fill="#fffbeb" stroke="#f59e0b" stroke-width="1" rx="4"/>
+      <text x="400" y="434" font-family="Inter, sans-serif" font-size="9" fill="#92400e" text-anchor="middle">💡 Best practice : <strong>RBAC pour la simplicité, ABAC pour les cas sensibles</strong> (combine les deux !)</text>
+    </svg>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> RBAC (Role-Based Access Control)</div>
+    <div class="block-body">
+      <p><strong>Principe :</strong> Permissions basées sur le rôle utilisateur.</p>
+      <p style="margin-top:0.75rem;"><strong>Exemple LogiStock :</strong></p>
+      <ul>
+        <li>Alice (role: admin) → Peut tout faire</li>
+        <li>Charlie (role: stock_manager) → Peut modifier stocks</li>
+        <li>Frank (role: viewer) → Lecture seule</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Avantage :</strong> Simple, clair, facile à auditer</p>
+      <p><strong>Limite :</strong> Pas de contexte (heure, lieu, device)</p>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> ABAC (Attribute-Based Access Control)</div>
+    <div class="block-body">
+      <p><strong>Principe :</strong> Permissions basées sur attributs + contexte.</p>
+      <p style="margin-top:0.75rem;"><strong>Exemple LogiStock :</strong></p>
+      <ul>
+        <li>Charlie peut modifier stocks <strong>SI</strong> :
+          <ul>
+            <li>Role = stock_manager <strong>ET</strong></li>
+            <li>Heure entre 9h-18h <strong>ET</strong></li>
+            <li>Depuis réseau entreprise (10.2.0.0/24)</li>
+          </ul>
+        </li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Avantage :</strong> Granularité maximale, contexte</p>
+      <p><strong>Limite :</strong> Plus complexe à gérer</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 2 : Tester la politique RBAC (30 min)
+  </h3>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Charger la politique RBAC dans OPA</span>
+curl -X PUT http://localhost:8181/v1/policies/rbac \
+  --data-binary @policies/rbac.rego
+
+<span class="cm"># Test 1 : Alice (admin) peut supprimer un utilisateur ?</span>
+curl -X POST http://localhost:8181/v1/data/logistock/rbac/allow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "user": {"role": "admin"},
+      "action": "delete",
+      "resource": {"type": "user"}
+    }
+  }' | jq
+
+<span class="cm"># Résultat attendu : {"result": true}</span>
+
+<span class="cm"># Test 2 : Frank (viewer) peut supprimer ?</span>
+curl -X POST http://localhost:8181/v1/data/logistock/rbac/allow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "user": {"role": "viewer"},
+      "action": "delete",
+      "resource": {"type": "user"}
+    }
+  }' | jq
+
+<span class="cm"># Résultat attendu : {"result": false}</span>
+
+<span class="cm"># Test 3 : Pourquoi Frank ne peut pas ?</span>
+curl -X POST http://localhost:8181/v1/data/logistock/rbac/deny_reason \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "user": {"username": "frank", "role": "viewer"},
+      "action": "delete",
+      "resource": {"type": "user"}
+    }
+  }' | jq</pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 3 : Tester la politique ABAC (40 min)
+  </h3>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Charger la politique ABAC</span>
+curl -X PUT http://localhost:8181/v1/policies/abac \
+  --data-binary @policies/abac.rego
+
+<span class="cm"># Test 1 : Charlie peut modifier stock à 14h depuis entreprise ?</span>
+curl -X POST http://localhost:8181/v1/data/logistock/abac/allow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "user": {
+        "username": "charlie",
+        "role": "stock_manager",
+        "department": "Logistics"
+      },
+      "action": "update",
+      "resource": {
+        "type": "stock",
+        "value": 5000,
+        "sensitivity": "medium"
+      },
+      "time": {"hour": 14},
+      "location": {"country": "FR"},
+      "request": {"ip": "10.2.0.25"}
+    }
+  }' | jq
+
+<span class="cm"># Résultat attendu : {"result": true}</span>
+
+<span class="cm"># Test 2 : Charlie peut modifier stock à 22h ?</span>
+curl -X POST http://localhost:8181/v1/data/logistock/abac/allow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "user": {"role": "stock_manager"},
+      "action": "update",
+      "resource": {"type": "stock"},
+      "time": {"hour": 22}
+    }
+  }' | jq
+
+<span class="cm"># Résultat attendu : {"result": false}</span>
+<span class="cm"># Raison : hors heures bureau (9h-18h)</span></pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Livrables TP4</div>
+    <div class="block-body">
+      <ul>
+        <li>✅ Tests RBAC : admin vs viewer</li>
+        <li>✅ Tests ABAC : contraintes temporelles (9h-18h)</li>
+        <li>✅ Tests ABAC : contraintes réseau (10.2.0.0/24)</li>
+        <li>✅ Screenshot résultats OPA (allow true/false)</li>
+        <li>✅ Explication deny_reason</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP5 : IAM ROLES + ASSUMEROLE                                   -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="tp5">
+  <div class="section-header">
+    <span class="section-number">TP5 · JOUR 2</span>
+    <h2>AWS IAM Roles + AssumeRole</h2>
+    <span class="section-duration">1h30</span>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Objectif</div>
+    <div class="block-body">
+      <p><strong>Comprendre les rôles IAM</strong> et le mécanisme AssumeRole pour déléguer temporairement 
+      des permissions sans partager de credentials permanents.</p>
+      <p style="margin-top:0.75rem;"><strong>Concepts couverts :</strong> IAM Roles, Trust Policy, AssumeRole, 
+      Temporary Credentials, Cross-Account Access, ExternalId.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 1 : Comprendre les rôles IAM (20 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> User vs Role</div>
+    <div class="block-body">
+      <p><strong>IAM User :</strong></p>
+      <ul>
+        <li>Identité permanente (Alice, Bob)</li>
+        <li>Access keys permanentes</li>
+        <li>Utilisé par des humains</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>IAM Role :</strong></p>
+      <ul>
+        <li>Identité temporaire (LogistockEC2S3Role)</li>
+        <li>Pas de credentials permanents</li>
+        <li>Utilisé par services (EC2, Lambda) ou users (AssumeRole)</li>
+        <li>Temporary credentials (exp: 1h)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Lister les rôles IAM</span>
+awslocal iam list-roles | jq '.Roles[] | {RoleName, Arn}'
+
+<span class="cm"># Voir la Trust Policy d'un rôle</span>
+awslocal iam get-role --role-name LogistockEC2S3Role | jq '.Role.AssumeRolePolicyDocument'
+
+<span class="cm"># Trust Policy dit : "EC2 peut assumer ce rôle"</span></pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 2 : Tester AssumeRole (40 min)
+  </h3>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
+    <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+      <rect width="800" height="400" fill="#f8f7f4"/>
+      <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">AssumeRole — Temporary Credentials (1h)</text>
+      
+      <!-- Alice (permanent user) -->
+      <rect x="50" y="100" width="150" height="100" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="6"/>
+      <text x="125" y="130" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">Alice</text>
+      <text x="125" y="150" font-family="Inter, sans-serif" font-size="9" fill="#10b981" text-anchor="middle">IAM User (permanent)</text>
+      <text x="125" y="170" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b7280" text-anchor="middle">Access Key:</text>
+      <text x="125" y="183" font-family="JetBrains Mono, monospace" font-size="8" fill="#065f46" text-anchor="middle">AKIAXXXXX</text>
+      
+      <!-- AssumeRole API call -->
+      <path d="M 200 150 L 330 150" stroke="#7c3aed" stroke-width="3" fill="none" marker-end="url(#arrow-assume)"/>
+      <text x="265" y="140" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#5b21b6" text-anchor="middle">1. sts:AssumeRole</text>
+      <rect x="220" y="155" width="90" height="40" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1" rx="4"/>
+      <text x="265" y="170" font-family="JetBrains Mono, monospace" font-size="7" fill="#6b21a8" text-anchor="middle">--role-arn</text>
+      <text x="265" y="182" font-family="JetBrains Mono, monospace" font-size="7" fill="#6b21a8" text-anchor="middle">LogistockCross</text>
+      <text x="265" y="192" font-family="JetBrains Mono, monospace" font-size="7" fill="#6b21a8" text-anchor="middle">AccountRole</text>
+      
+      <!-- Role -->
+      <rect x="330" y="100" width="190" height="100" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="6"/>
+      <text x="425" y="125" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#5b21b6" text-anchor="middle">LogistockCrossAccountRole</text>
+      <text x="425" y="145" font-family="Inter, sans-serif" font-size="9" fill="#7c3aed" text-anchor="middle">IAM Role (temporary)</text>
+      <text x="425" y="165" font-family="Inter, sans-serif" font-size="8" fill="#6b21a8">Permissions:</text>
+      <text x="425" y="180" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b21a8" text-anchor="middle">ReadOnlyAccess</text>
+      
+      <!-- Temporary credentials -->
+      <path d="M 425 200 L 425 240" stroke="#3b82f6" stroke-width="3" fill="none" marker-end="url(#arrow-assume-blue)"/>
+      <text x="450" y="220" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e40af">2. Temporary Creds</text>
+      
+      <rect x="330" y="250" width="190" height="110" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="6"/>
+      <text x="425" y="272" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e40af" text-anchor="middle">Credentials temporaires</text>
+      <text x="335" y="290" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">AccessKeyId: ASIATEMP...</text>
+      <text x="335" y="304" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">SecretAccessKey: ***</text>
+      <text x="335" y="318" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">SessionToken: ***</text>
+      <text x="425" y="340" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#dc2626" text-anchor="middle">⏰ Expiration: 1 heure</text>
+      <text x="425" y="355" font-family="Inter, sans-serif" font-size="8" fill="#6b7280" text-anchor="middle">Après 1h → invalides</text>
+      
+      <!-- S3 Access -->
+      <rect x="570" y="100" width="180" height="100" fill="#fff8ed" stroke="#ff9900" stroke-width="2" rx="6"/>
+      <text x="660" y="130" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#b85c00" text-anchor="middle">S3</text>
+      <text x="660" y="150" font-family="Inter, sans-serif" font-size="9" fill="#ff9900" text-anchor="middle">logistock-data</text>
+      <text x="660" y="170" font-family="Inter, sans-serif" font-size="8" fill="#10b981">✅ Lecture autorisée</text>
+      <text x="660" y="187" font-family="Inter, sans-serif" font-size="8" fill="#dc2626">❌ Écriture refusée</text>
+      
+      <!-- Arrow to S3 -->
+      <path d="M 520 300 L 600 160" stroke="#ff9900" stroke-width="2" fill="none" marker-end="url(#arrow-assume-orange)"/>
+      <text x="560" y="220" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#b85c00" text-anchor="middle">3. API calls</text>
+      <text x="560" y="235" font-family="JetBrains Mono, monospace" font-size="8" fill="#ff9900" text-anchor="middle">avec temp creds</text>
+      
+      <!-- Bottom explanation -->
+      <rect x="50" y="370" width="700" height="20" fill="#fffbeb" stroke="#f59e0b" stroke-width="1" rx="4"/>
+      <text x="400" y="384" font-family="Inter, sans-serif" font-size="9" fill="#92400e" text-anchor="middle">💡 Use case : Déléguer des permissions temporairement SANS créer de user permanent ni partager de credentials</text>
+      
+      <defs>
+        <marker id="arrow-assume" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#7c3aed"/>
+        </marker>
+        <marker id="arrow-assume-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#3b82f6"/>
+        </marker>
+        <marker id="arrow-assume-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#ff9900"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Alice assume le rôle LogistockCrossAccountRole</span>
+awslocal sts assume-role \
+  --role-arn arn:aws:iam::000000000000:role/LogistockCrossAccountRole \
+  --role-session-name alice-session \
+  --external-id logistock-external-id-123 \
+  | jq
+
+<span class="cm"># Résultat : Temporary credentials (AccessKeyId, SecretAccessKey, SessionToken)</span>
+<span class="cm"># Valides pendant 1 heure</span>
+
+<span class="cm"># Utiliser les credentials temporaires</span>
+export AWS_ACCESS_KEY_ID="<temp_access_key>"
+export AWS_SECRET_ACCESS_KEY="<temp_secret_key>"
+export AWS_SESSION_TOKEN="<temp_session_token>"
+
+<span class="cm"># Tester : Alice peut maintenant lire (ReadOnlyAccess)</span>
+awslocal s3 ls s3://logistock-data
+
+<span class="cm"># Tester : Alice NE peut PAS écrire (ReadOnlyAccess)</span>
+echo "test" | awslocal s3 cp - s3://logistock-data/test.txt
+<span class="cm"># Résultat : AccessDenied</span></pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 3 : Cross-Account Access (30 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">💡</span> Use case</div>
+    <div class="block-body">
+      <p><strong>Scénario :</strong> LogiStock (Account A) veut donner accès à un consultant externe (Account B) 
+      pour auditer les logs S3, SANS créer de user permanent dans Account A.</p>
+      <p style="margin-top:0.75rem;"><strong>Solution :</strong> Créer un rôle dans Account A avec Trust Policy 
+      autorisant Account B à l'assumer. Le consultant utilise AssumeRole avec son compte B.</p>
+    </div>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Livrables TP5</div>
+    <div class="block-body">
+      <ul>
+        <li>✅ Liste des rôles IAM + Trust Policies</li>
+        <li>✅ AssumeRole réussi (temporary credentials)</li>
+        <li>✅ Test permissions avec credentials temporaires</li>
+        <li>✅ Screenshot expiration credentials (1h)</li>
+        <li>✅ Schéma Cross-Account Access</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP6 : JIT ACCESS VAULT                                         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="tp6">
+  <div class="section-header">
+    <span class="section-number">TP6 · JOUR 2</span>
+    <h2>JIT Access avec Vault</h2>
+    <span class="section-duration">1h30</span>
+  </div>
+
+  
+  <div class="block tip">
+    <!-- TP6 : CONCEPTS CLÉS — JIT ACCESS                              -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:1.5rem 0 1rem;font-size:1.3rem;color:#6b7280;">
+  📚 Concepts clés — JIT Access & Vault
+</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin:1.5rem 0;">
+
+  <!-- Texte -->
+  <div>
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">⏰</span> JIT Access (Just-In-Time)</div>
+      <div class="block-body">
+        <p><strong>Accès temporaire sur demande</strong> — au lieu de credentials permanents :</p>
+        <ul style="margin-top:0.75rem;">
+          <li>❌ Ancien : alice a une clé SSH valide 1 an</li>
+          <li>✅ Nouveau : alice demande accès → Vault génère OTP 30 min</li>
+          <li>⏱️ Après 30 min : OTP expirée, accès fermé</li>
+          <li>📝 Audit : qui s'est connecté quand exactement</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">🔐</span> Permanent vs Dynamic Credentials</div>
+      <div class="block-body">
+        <p><strong>Permanent (risky) :</strong></p>
+        <ul style="margin-top:0.5rem;">
+          <li>Valid 365 jours/an</li>
+          <li>Si volée → danger permanent</li>
+          <li>Rotation manuelle (pénible)</li>
+        </ul>
+        <p style="margin-top:0.75rem;"><strong>Dynamic (secure) :</strong></p>
+        <ul style="margin-top:0.5rem;">
+          <li>Généré à la demande</li>
+          <li>Expire automatiquement (30 min)</li>
+          <li>Audit fin des accès</li>
+          <li>Rotation = creation automatique</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block checkpoint">
+      <div class="block-header"><span class="block-icon">🤖</span> Qu'est-ce que Vault ?</div>
+      <div class="block-body">
+        <p><strong>Secrets Management Engine</strong> :</p>
+        <ul style="margin-top:0.75rem;">
+          <li>🔑 Stocke &amp; gère secrets (passwords, API keys, SSH keys)</li>
+          <li>🎫 Émet credentials dynamiques (OTP SSH, DB passwords)</li>
+          <li>📜 Policies pour contrôler qui peut demander quoi</li>
+          <li>📝 Audit trail complet</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block tip">
+      <div class="block-header"><span class="block-icon">⚙️</span> Pourquoi 5 conteneurs ?</div>
+      <div class="block-body">
+        <ul>
+          <li><strong>Keycloak</strong> = auth</li>
+          <li><strong>LocalStack</strong> = resources</li>
+          <li><strong>OPA</strong> = policies</li>
+          <li><strong>Vault</strong> = <strong>secrets &amp; JIT</strong> (nouveau!)</li>
+          <li><strong>PostgreSQL</strong> = persistance</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SVG Timeline -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;display:flex;align-items:center;justify-content:center;min-height:500px;">
+    <svg viewBox="0 0 400 520" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow3" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#6b7280"/>
+        </marker>
+      </defs>
+
+      <text x="200" y="25" font-family="Syne, sans-serif" font-size="16" font-weight="700" fill="#1a1917" text-anchor="middle">
+        Permanent vs JIT Access
+      </text>
+
+      <!-- BEFORE section -->
+      <text x="200" y="55" font-family="Syne, sans-serif" font-size="13" font-weight="700" fill="#dc2626">❌ BEFORE (Permanent)</text>
+
+      <!-- Key issued once -->
+      <circle cx="100" cy="90" r="25" fill="#fecaca" stroke="#dc2626" stroke-width="2"/>
+      <text x="100" y="97" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#7f1d1d" text-anchor="middle">KEY</text>
+
+      <!-- Timeline arrow -->
+      <path d="M 130 90 L 270 90" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow3)"/>
+      <text x="200" y="80" font-family="Inter, sans-serif" font-size="9" fill="#dc2626" text-anchor="middle">365 jours</text>
+
+      <!-- Key used forever -->
+      <circle cx="300" cy="90" r="25" fill="#fecaca" stroke="#dc2626" stroke-width="2"/>
+      <text x="300" y="97" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#7f1d1d" text-anchor="middle">KEY</text>
+
+      <!-- Risks -->
+      <rect x="30" y="130" width="340" height="90" fill="#fff5f5" stroke="#fca5a5" stroke-width="1" stroke-dasharray="3,3" rx="6"/>
+      <text x="200" y="155" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#991b1b" text-anchor="middle">🔴 Risques :</text>
+      <text x="50" y="175" font-family="Inter, sans-serif" font-size="9" fill="#7f1d1d">• Si clé volée → accès illimité (1 an!)</text>
+      <text x="50" y="192" font-family="Inter, sans-serif" font-size="9" fill="#7f1d1d">• Pas d'audit fine (qui a fait quoi)</text>
+      <text x="50" y="209" font-family="Inter, sans-serif" font-size="9" fill="#7f1d1d">• Rotation manuelle = pénible</text>
+
+      <!-- AFTER section -->
+      <text x="200" y="270" font-family="Syne, sans-serif" font-size="13" font-weight="700" fill="#059669">✅ AFTER (JIT with Vault)</text>
+
+      <!-- Request -->
+      <g>
+        <circle cx="50" cy="310" r="22" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
+        <text x="50" y="315" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#065f46" text-anchor="middle">Alice</text>
+      </g>
+
+      <text x="100" y="305" font-family="Inter, sans-serif" font-size="9" fill="#059669">Request OTP</text>
+      <path d="M 75 310 L 130 310" stroke="#059669" stroke-width="2" marker-end="url(#arrow3)"/>
+
+      <!-- Vault -->
+      <g>
+        <rect x="130" y="290" width="80" height="40" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="6"/>
+        <text x="170" y="305" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#065f46" text-anchor="middle">Vault</text>
+        <text x="170" y="320" font-family="Inter, sans-serif" font-size="7" fill="#047857" text-anchor="middle">:8200</text>
+      </g>
+
+      <text x="220" y="305" font-family="Inter, sans-serif" font-size="9" fill="#059669">Issue OTP</text>
+      <path d="M 210 310 L 265 310" stroke="#059669" stroke-width="2" marker-end="url(#arrow3)"/>
+
+      <!-- OTP (temporary) -->
+      <g>
+        <rect x="265" y="295" width="70" height="30" fill="#d1fae5" stroke="#10b981" stroke-width="2" rx="4"/>
+        <text x="300" y="315" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#065f46" text-anchor="middle">OTP</text>
+      </g>
+
+      <!-- Timeline: OTP expiry -->
+      <path d="M 300 330 L 300 370" stroke="#dc2626" stroke-width="2"/>
+      <text x="340" y="352" font-family="Inter, sans-serif" font-size="9" fill="#dc2626">30 min</text>
+      <circle cx="300" cy="375" r="6" fill="#dc2626"/>
+      <text x="320" y="378" font-family="Inter, sans-serif" font-size="9" fill="#dc2626" font-weight="600">Expired!</text>
+
+      <!-- Benefits -->
+      <rect x="30" y="410" width="340" height="90" fill="#f0fdf4" stroke="#86efac" stroke-width="1" stroke-dasharray="3,3" rx="6"/>
+      <text x="200" y="435" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#15803d" text-anchor="middle">🟢 Avantages :</text>
+      <text x="50" y="455" font-family="Inter, sans-serif" font-size="9" fill="#166534">• OTP volée → accès que 30 min (risque limité)</text>
+      <text x="50" y="472" font-family="Inter, sans-serif" font-size="9" fill="#166534">• Audit complet (qui s'est connecté à quelle heure)</text>
+      <text x="50" y="489" font-family="Inter, sans-serif" font-size="9" fill="#166534">• Rotation = génération auto (sécurisé by default)</text>
+    </svg>
+  </div>
+
+</div>
+
+  <div class="block-header"><span class="block-icon">⚡</span> Lancer les services (2 minutes)</div>
+    <div class="block-body">
+      <p><strong>PowerShell (Windows) :</strong></p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam localstack opa vault
+Start-Sleep -Seconds 60
+curl http://localhost:8200/v1/sys/health</pre>
+  </div>
+
+  <div class="block-body" style="margin-top:1rem;">
+    <p><strong>Bash (Linux/macOS) :</strong></p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>docker-compose -f docker-compose-iam.yml up -d keycloak postgres-iam localstack opa vault
+sleep 60
+curl http://localhost:8200/v1/sys/health</pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Vérification</div>
+    <div class="block-body">
+      <ul>
+        <li>Vault health : <code>{"initialized":true,"sealed":false}</code></li>
+        <li>Tous les services prêts ✅</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block exercise">
+    <div class="block-header"><span class="block-icon">📝</span> Setup données — Créer les rôles SSH Vault</div>
+    <div class="block-body">
+      <p>Choisissez votre approche pour créer les rôles SSH :</p>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">1️⃣</span> Approche 1 — Commandes manuelles</div>
+    <div class="block-body"><p><strong>PowerShell (Windows) :</strong></p></div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>$VaultAddr = "http://localhost:8200"
+$VaultToken = "root"
+
+<span class="cm"># 1. Créer le rôle bastion-admin</span>
+$adminRole = @{
+  key_type = "ca"
+  ttl = "30m"
+  max_ttl = "2h"
+  allowed_users = "root"
+} | ConvertTo-Json
+
+$adminUrl = "$VaultAddr/v1/ssh/roles/bastion-admin"
+Invoke-WebRequest -Uri $adminUrl -Method Post `
+  -Headers @{ "X-Vault-Token" = $VaultToken; "Content-Type" = "application/json" } `
+  -Body $adminRole | Out-Null
+
+Write-Host "✓ Role created: bastion-admin (root, 30min)"
+
+<span class="cm"># 2. Créer le rôle bastion-user</span>
+$userRole = @{
+  key_type = "ca"
+  ttl = "15m"
+  max_ttl = "1h"
+  allowed_users = "logistock"
+} | ConvertTo-Json
+
+$userUrl = "$VaultAddr/v1/ssh/roles/bastion-user"
+Invoke-WebRequest -Uri $userUrl -Method Post `
+  -Headers @{ "X-Vault-Token" = $VaultToken; "Content-Type" = "application/json" } `
+  -Body $userRole | Out-Null
+
+Write-Host "✓ Role created: bastion-user (logistock, 15min)"
+Write-Host ""
+Write-Host "✅ SSH roles créés dans Vault!"</pre>
+  </div>
+
+  <div class="block-body" style="margin-top:1rem;">
+    <p><strong>Bash (Linux/macOS) :</strong></p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>export VAULT_ADDR="http://localhost:8200"
+export VAULT_TOKEN="root"
+
+<span class="cm"># Créer le rôle bastion-admin (user root, 30 min)</span>
+curl -X POST "$VAULT_ADDR/v1/ssh/roles/bastion-admin" \
+  -H "X-Vault-Token: $VAULT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key_type":"ca",
+    "ttl":"30m",
+    "max_ttl":"2h",
+    "allowed_users":"root"
+  }'
+
+<span class="cm"># Créer le rôle bastion-user</span>
+curl -X POST "$VAULT_ADDR/v1/ssh/roles/bastion-user" \
+  -H "X-Vault-Token: $VAULT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key_type":"ca",
+    "ttl":"15m",
+    "max_ttl":"1h",
+    "allowed_users":"logistock"
+  }'
+
+echo "✓ SSH roles created in Vault"</pre>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">1️⃣</span> Approche 1 — Commandes manuelles</div>
+    <div class="block-body"><p><strong>Bash :</strong></p></div>
+curl -X POST "$VAULT_ADDR/v1/ssh/roles/bastion-admin" \
+  -H "X-Vault-Token: $VAULT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key_type":"ca",
+    "ttl":"30m",
+    "max_ttl":"2h",
+    "allowed_users":"root"
+  }'
+
+<span class="cm"># Créer le rôle bastion-user (user logistock, 15 min)</span>
+curl -X POST "$VAULT_ADDR/v1/ssh/roles/bastion-user" \
+  -H "X-Vault-Token: $VAULT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key_type":"ca",
+    "ttl":"15m",
+    "max_ttl":"1h",
+    "allowed_users":"logistock"
+  }'
+
+echo "✓ SSH roles created in Vault"</pre>
+  </div>
+
+  <div class="block exercise">
+    <div class="block-header"><span class="block-icon">2️⃣</span> Approche 2 — TP Bonus : Créez votre script</div>
+    <div class="block-body">
+      <p><strong>Défi :</strong> Écrivez un script qui crée les 2 rôles SSH Vault</p>
+      <p style="margin-top:0.75rem;"><strong>Indices :</strong></p>
+      <ul>
+        <li>Utiliser curl POST avec le token "root"</li>
+        <li>Créer 2 rôles : bastion-admin (root, 30m) et bastion-user (logistock, 15m)</li>
+        <li>Endpoint : POST /v1/ssh/roles/&lt;role-name&gt;</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">3️⃣</span> Approche 3 — Solution (script fourni)</div>
+    <div class="block-body">
+      <p><code>init-scripts/init-vault-FAST.sh</code> (crée les SSH roles bastion-admin et bastion-user)</p>
+    </div>
+  </div>
+
+  <div class="block warning">
+    <div class="block-header"><span class="block-icon">⚠️</span> Données manquantes — Compléter le setup Vault</div>
+    <div class="block-body">
+      <p><strong>Après avoir créé les SSH roles, il manque :</strong></p>
+      <ul>
+        <li>❌ Vault Policies (logistock-admin, logistock-user)</li>
+        <li>❌ Associations users → policies</li>
+        <li>❌ AppRole secrets (optionnel)</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>→ Exécute les commandes PowerShell ci-dessous :</strong></p>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">powershell</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre>$VaultAddr = "http://localhost:8200"
+$VaultToken = "root"
+
+<span class="cm"># 1. Créer les Vault Policies</span>
+
+<span class="cm"># Policy pour admins (Alice, Bob)</span>
+$adminPolicy = @"
+path "ssh/creds/bastion-admin" {
+  capabilities = ["create", "read", "update"]
+}
+path "ssh/roles/bastion-admin" {
+  capabilities = ["read"]
+}
+"@
+
+<span class="cm"># Policy pour users standard</span>
+$userPolicy = @"
+path "ssh/creds/bastion-user" {
+  capabilities = ["create", "read"]
+}
+path "ssh/roles/bastion-user" {
+  capabilities = ["read"]
+}
+"@
+
+<span class="cm"># Créer les policies</span>
+$adminPolicyBody = @{ policy = $adminPolicy } | ConvertTo-Json
+Invoke-WebRequest -Uri "$VaultAddr/v1/sys/policies/acl/logistock-admin" -Method Put `
+  -Headers @{ "X-Vault-Token" = $VaultToken; "Content-Type" = "application/json" } `
+  -Body $adminPolicyBody | Out-Null
+
+$userPolicyBody = @{ policy = $userPolicy } | ConvertTo-Json
+Invoke-WebRequest -Uri "$VaultAddr/v1/sys/policies/acl/logistock-user" -Method Put `
+  -Headers @{ "X-Vault-Token" = $VaultToken; "Content-Type" = "application/json" } `
+  -Body $userPolicyBody | Out-Null
+
+Write-Host "✓ Policies created: logistock-admin, logistock-user"
+
+<span class="cm"># 2. Vérifier les rôles SSH</span>
+Write-Host "`n=== SSH ROLES ===" -ForegroundColor Cyan
+$roles = Invoke-WebRequest -Uri "$VaultAddr/v1/ssh/roles?list=true" `
+  -Headers @{ "X-Vault-Token" = $VaultToken; "X-Vault-Request" = "true" } | ConvertFrom-Json
+$roles.data.keys | ForEach-Object { Write-Host "  ✓ $_" }
+
+Write-Host "`n✅ Vault setup complété !"</pre>
+  </div>
+
+<div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Objectif</div>
+    <div class="block-body">
+      <p><strong>Implémenter Just-In-Time Access</strong> avec Vault SSH secrets engine pour donner des accès 
+      temporaires au bastion LogiStock (30 min max), sans credentials permanents.</p>
+      <p style="margin-top:0.75rem;"><strong>Concepts couverts :</strong> JIT Access, SSH OTP, Vault Policies, 
+      Lease Management, Dynamic Secrets (rappel CRYE857).</p>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> Rappel CRYE857</div>
+    <div class="block-body">
+      <p>En CRYE857, vous avez utilisé Vault pour générer des secrets dynamiques (DB passwords). 
+      Même principe ici : Vault génère des <strong>OTP SSH temporaires</strong> (30 min) pour accéder au bastion.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 1 : Comprendre JIT Access (20 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">💡</span> Accès permanent vs JIT</div>
+    <div class="block-body">
+      <p><strong>Accès permanent (❌ ancien modèle) :</strong></p>
+      <ul>
+        <li>Alice a une clé SSH privée pour le bastion</li>
+        <li>Valide 365 jours/an</li>
+        <li>Si compromise → danger permanent</li>
+        <li>Pas d'audit fin (qui s'est connecté quand ?)</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>JIT Access (✅ nouveau modèle) :</strong></p>
+      <ul>
+        <li>Alice demande accès SSH à Vault</li>
+        <li>Vault génère OTP valide 30 min</li>
+        <li>Si compromise → expire vite</li>
+        <li>Audit complet (Vault logs)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 2 : Demander un accès SSH temporaire (40 min)
+  </h3>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
+    <svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg">
+      <rect width="800" height="350" fill="#f8f7f4"/>
+      <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">JIT Access Timeline — Vault SSH OTP (30 min)</text>
+      
+      <!-- Timeline -->
+      <line x1="100" y1="80" x2="700" y2="80" stroke="#6b7280" stroke-width="2"/>
+      
+      <!-- T=0: Request -->
+      <circle cx="100" cy="80" r="8" fill="#10b981"/>
+      <text x="100" y="110" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46" text-anchor="middle">T=0</text>
+      <text x="100" y="125" font-family="Inter, sans-serif" font-size="9" fill="#10b981" text-anchor="middle">Request</text>
+      
+      <rect x="20" y="140" width="160" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="6"/>
+      <text x="100" y="165" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">1. Alice demande</text>
+      <text x="100" y="185" font-family="JetBrains Mono, monospace" font-size="8" fill="#10b981" text-anchor="middle">vault write ssh/creds/</text>
+      <text x="100" y="198" font-family="JetBrains Mono, monospace" font-size="8" fill="#10b981" text-anchor="middle">bastion-admin</text>
+      <text x="100" y="213" font-family="JetBrains Mono, monospace" font-size="8" fill="#10b981" text-anchor="middle">ip=10.2.0.10</text>
+      
+      <!-- T=1s: OTP Generated -->
+      <circle cx="250" cy="80" r="8" fill="#3b82f6"/>
+      <text x="250" y="110" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e40af" text-anchor="middle">T=1s</text>
+      <text x="250" y="125" font-family="Inter, sans-serif" font-size="9" fill="#3b82f6" text-anchor="middle">OTP créé</text>
+      
+      <rect x="170" y="140" width="160" height="80" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="6"/>
+      <text x="250" y="165" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">2. Vault génère</text>
+      <text x="250" y="185" font-family="JetBrains Mono, monospace" font-size="8" fill="#3b82f6" text-anchor="middle">OTP: xK9mP2nQ7</text>
+      <text x="250" y="200" font-family="Inter, sans-serif" font-size="8" fill="#1e3a8a">Lease: 30 min</text>
+      <text x="250" y="213" font-family="JetBrains Mono, monospace" font-size="8" fill="#3b82f6" text-anchor="middle">User: root</text>
+      
+      <!-- T=5s: SSH Connection -->
+      <circle cx="400" cy="80" r="8" fill="#7c3aed"/>
+      <text x="400" y="110" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#5b21b6" text-anchor="middle">T=5s</text>
+      <text x="400" y="125" font-family="Inter, sans-serif" font-size="9" fill="#7c3aed" text-anchor="middle">Connexion</text>
+      
+      <rect x="320" y="140" width="160" height="80" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="6"/>
+      <text x="400" y="165" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#5b21b6" text-anchor="middle">3. SSH réussie</text>
+      <text x="400" y="185" font-family="JetBrains Mono, monospace" font-size="8" fill="#7c3aed" text-anchor="middle">ssh root@bastion</text>
+      <text x="400" y="200" font-family="Inter, sans-serif" font-size="8" fill="#6b21a8">Password: xK9mP2nQ7</text>
+      <text x="400" y="213" font-family="Inter, sans-serif" font-size="8" fill="#10b981">✅ Accès accordé</text>
+      
+      <!-- T=30min: Expiration -->
+      <circle cx="700" cy="80" r="8" fill="#dc2626"/>
+      <text x="700" y="110" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#dc2626" text-anchor="middle">T=30min</text>
+      <text x="700" y="125" font-family="Inter, sans-serif" font-size="9" fill="#dc2626" text-anchor="middle">Expiration</text>
+      
+      <rect x="620" y="140" width="160" height="80" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="6"/>
+      <text x="700" y="165" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">4. OTP expire</text>
+      <text x="700" y="185" font-family="Inter, sans-serif" font-size="8" fill="#991b1b">Lease révoqué</text>
+      <text x="700" y="200" font-family="Inter, sans-serif" font-size="8" fill="#dc2626">❌ Reconnexion</text>
+      <text x="700" y="213" font-family="Inter, sans-serif" font-size="8" fill="#dc2626">impossible</text>
+      
+      <!-- Usage period indicator -->
+      <rect x="250" y="240" width="150" height="30" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="4"/>
+      <text x="325" y="260" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46" text-anchor="middle">🟢 Fenêtre d'utilisation : 30 min</text>
+      
+      <!-- After expiration -->
+      <rect x="700" y="240" width="80" height="30" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="4"/>
+      <text x="740" y="260" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#dc2626" text-anchor="middle">🔴 Expiré</text>
+      
+      <!-- Bottom notes -->
+      <text x="50" y="295" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#6b6866">Avantages vs clé SSH permanente :</text>
+      <text x="60" y="315" font-family="Inter, sans-serif" font-size="9" fill="#10b981">✅ Pas de credential permanent</text>
+      <text x="60" y="330" font-family="Inter, sans-serif" font-size="9" fill="#10b981">✅ Si compromise → expire automatiquement</text>
+      
+      <text x="400" y="315" font-family="Inter, sans-serif" font-size="9" fill="#10b981">✅ Audit complet (qui, quand, combien de temps)</text>
+      <text x="400" y="330" font-family="Inter, sans-serif" font-size="9" fill="#10b981">✅ Révocation instantanée possible</text>
+    </svg>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Configurer Vault CLI</span>
+export VAULT_ADDR='http://localhost:8200'
+
+<span class="cm"># Alice s'authentifie avec son token (créé par init-vault.sh)</span>
+export VAULT_TOKEN='<alice_token_from_init_script>'
+
+<span class="cm"># Vérifier les politiques d'Alice</span>
+vault token lookup | jq '.data.policies'
+<span class="cm"># Résultat : ["logistock-admin"]</span>
+
+<span class="cm"># Alice demande un OTP SSH pour le bastion (30 min)</span>
+vault write ssh/creds/bastion-admin ip=10.2.0.10
+
+<span class="cm"># Résultat :</span>
+<span class="cm"># Key             Value</span>
+<span class="cm"># ---             -----</span>
+<span class="cm"># lease_id        ssh/creds/bastion-admin/XXXX</span>
+<span class="cm"># lease_duration  1800 (30 minutes)</span>
+<span class="cm"># key             [OTP password]</span>
+<span class="cm"># username        root</span>
+<span class="cm"># ip              10.2.0.10</span></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Se connecter au bastion avec l'OTP</span>
+ssh root@10.2.0.10
+<span class="cm"># Password: [coller l'OTP de Vault]</span>
+
+<span class="cm"># ✅ Connexion réussie !</span>
+<span class="cm"># Valable 30 minutes</span>
+
+<span class="cm"># Après 30 min : OTP expire, impossible de se reconnecter</span></pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 3 : Audit et révocation (30 min)
+  </h3>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Lister tous les leases SSH actifs</span>
+vault list sys/leases/lookup/ssh/creds/bastion-admin
+
+<span class="cm"># Voir détails d'un lease</span>
+vault lease lookup ssh/creds/bastion-admin/XXXX
+
+<span class="cm"># Révoquer un lease (urgence, ex: Alice quitte l'entreprise)</span>
+vault lease revoke ssh/creds/bastion-admin/XXXX
+
+<span class="cm"># Révoquer TOUS les leases SSH</span>
+vault lease revoke -prefix ssh/creds/
+
+<span class="cm"># Voir les logs d'audit</span>
+docker exec logistock_vault cat /vault/logs/audit.log | jq</pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Livrables TP6</div>
+    <div class="block-body">
+      <ul>
+        <li>✅ OTP SSH généré pour Alice (screenshot)</li>
+        <li>✅ Connexion bastion réussie avec OTP</li>
+        <li>✅ Lease duration = 30 min</li>
+        <li>✅ Test révocation manuelle</li>
+        <li>✅ Screenshot audit logs Vault</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">💡</span> Avantages JIT</div>
+    <div class="block-body">
+      <ul>
+        <li>✅ Zero Standing Privileges (pas de credentials permanents)</li>
+        <li>✅ Blast Radius limité (si compromise, expire vite)</li>
+        <li>✅ Audit complet (qui, quand, combien de temps)</li>
+        <li>✅ Révocation instantanée</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TP7 : ZERO TRUST ARCHITECTURE                                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="tp7">
+  <div class="section-header">
+    <span class="section-number">TP7 · JOUR 2</span>
+    <h2>Zero Trust Architecture</h2>
+    <span class="section-duration">2h30</span>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Objectif</div>
+    <div class="block-body">
+      <p><strong>Implémenter une architecture Zero Trust</strong> complète pour LogiStock : vérifier chaque 
+      requête (JWT + Device Posture + Context), même depuis le réseau interne.</p>
+      <p style="margin-top:0.75rem;"><strong>Concepts couverts :</strong> Zero Trust principles, Device Posture, 
+      Context-Aware Access, Identity-Aware Proxy, Continuous Authorization, Compliance Score.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 1 : Comprendre Zero Trust (30 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📚</span> Zero Trust Principles</div>
+    <div class="block-body">
+      <p><strong>"Never trust, always verify"</strong></p>
+      <p style="margin-top:0.75rem;"><strong>Ancien modèle (Castle-and-Moat) :</strong></p>
+      <ul>
+        <li>Réseau interne = confiance totale</li>
+        <li>Réseau externe = danger</li>
+        <li>Firewall = frontière</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Problème :</strong> Si un attaquant entre (phishing, VPN compromise), 
+      il a accès à tout.</p>
+      <p style="margin-top:0.75rem;"><strong>Zero Trust :</strong></p>
+      <ul>
+        <li>❌ Pas de confiance par défaut (même réseau interne)</li>
+        <li>✅ Vérifier CHAQUE requête (identity, device, context)</li>
+        <li>✅ Least Privilege (accès minimal nécessaire)</li>
+        <li>✅ Micro-segmentation (segments granulaires)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 2 : Implémenter Device Posture Checking (45 min)
+  </h3>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.25rem 0;">
+    <svg viewBox="0 0 800 550" xmlns="http://www.w3.org/2000/svg">
+      <rect width="800" height="550" fill="#f8f7f4"/>
+      <text x="400" y="25" font-family="Syne, sans-serif" font-size="18" font-weight="700" fill="#1a1917" text-anchor="middle">Zero Trust Verification Flow — 6 Contrôles Continus</text>
+      
+      <!-- Alice with device -->
+      <rect x="50" y="60" width="120" height="100" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="6"/>
+      <text x="110" y="90" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">Alice</text>
+      <text x="110" y="110" font-family="JetBrains Mono, monospace" font-size="8" fill="#10b981" text-anchor="middle">MacBook Pro</text>
+      <text x="110" y="125" font-family="Inter, sans-serif" font-size="7" fill="#6b7280">Location: Paris</text>
+      <text x="110" y="138" font-family="Inter, sans-serif" font-size="7" fill="#6b7280">Time: 14:00</text>
+      <text x="110" y="151" font-family="Inter, sans-serif" font-size="7" fill="#6b7280">IP: 10.0.1.50</text>
+      
+      <!-- Request arrow -->
+      <path d="M 170 110 L 240 110" stroke="#7c3aed" stroke-width="3" fill="none" marker-end="url(#arrow-zt)"/>
+      <text x="205" y="100" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#5b21b6" text-anchor="middle">Request</text>
+      
+      <!-- Verification checks -->
+      <text x="500" y="50" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#6b6866">6 Vérifications Continues</text>
+      
+      <!-- Check 1: JWT -->
+      <rect x="250" y="80" width="500" height="60" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="6"/>
+      <text x="270" y="105" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#5b21b6">1️⃣ JWT Token</text>
+      <text x="270" y="120" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b21a8">✅ Signature valide (Keycloak)</text>
+      <text x="270" y="132" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b21a8">✅ exp > now (non expiré)</text>
+      <text x="500" y="120" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b21a8">✅ iss = keycloak</text>
+      <text x="500" y="132" font-family="JetBrains Mono, monospace" font-size="8" fill="#6b21a8">✅ MFA vérifié (amr: mfa)</text>
+      
+      <!-- Check 2: Device Posture -->
+      <rect x="250" y="150" width="500" height="60" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="6"/>
+      <text x="270" y="175" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e40af">2️⃣ Device Posture</text>
+      <text x="270" y="190" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">✅ OS à jour (< 30j)</text>
+      <text x="270" y="202" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">✅ Antivirus actif</text>
+      <text x="470" y="190" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">✅ Firewall ON</text>
+      <text x="470" y="202" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">✅ Disk encrypted</text>
+      <text x="640" y="190" font-family="JetBrains Mono, monospace" font-size="8" fill="#1e3a8a">❌ Pas root</text>
+      
+      <!-- Check 3: Location -->
+      <rect x="250" y="220" width="240" height="50" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="6"/>
+      <text x="270" y="242" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46">3️⃣ Location</text>
+      <text x="270" y="257" font-family="JetBrains Mono, monospace" font-size="8" fill="#10b981">✅ Country: FR (autorisé)</text>
+      
+      <!-- Check 4: Time -->
+      <rect x="510" y="220" width="240" height="50" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="6"/>
+      <text x="530" y="242" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#065f46">4️⃣ Time</text>
+      <text x="530" y="257" font-family="JetBrains Mono, monospace" font-size="8" fill="#10b981">✅ 14:00 (8h-20h OK)</text>
+      
+      <!-- Check 5: Network -->
+      <rect x="250" y="280" width="240" height="50" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" rx="6"/>
+      <text x="270" y="302" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#1e40af">5️⃣ Network</text>
+      <text x="270" y="317" font-family="JetBrains Mono, monospace" font-size="8" fill="#3b82f6">✅ IP: 10.0.1.50 (corporate)</text>
+      
+      <!-- Check 6: Resource Sensitivity -->
+      <rect x="510" y="280" width="240" height="50" fill="#fff8ed" stroke="#ff9900" stroke-width="2" rx="6"/>
+      <text x="530" y="302" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#b85c00">6️⃣ Resource</text>
+      <text x="530" y="317" font-family="JetBrains Mono, monospace" font-size="8" fill="#ff9900">⚠️ Sensitivity: high</text>
+      
+      <!-- Decision -->
+      <rect x="250" y="350" width="500" height="60" fill="#ecfdf5" stroke="#10b981" stroke-width="3" rx="8"/>
+      <text x="500" y="375" font-family="Syne, sans-serif" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">✅ AUTORISATION ACCORDÉE</text>
+      <text x="500" y="395" font-family="Inter, sans-serif" font-size="9" fill="#10b981" text-anchor="middle">Compliance Score: 100% (6/6 checks passés)</text>
+      
+      <!-- Resource Access -->
+      <rect x="250" y="430" width="500" height="60" fill="#fff8ed" stroke="#ff9900" stroke-width="2" rx="6"/>
+      <text x="500" y="455" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b85c00" text-anchor="middle">→ Accès à la ressource sensible</text>
+      <text x="500" y="475" font-family="JetBrains Mono, monospace" font-size="9" fill="#ff9900" text-anchor="middle">logistock-api/stocks (high sensitivity)</text>
+      
+      <!-- Bottom note -->
+      <rect x="50" y="510" width="700" height="30" fill="#fffbeb" stroke="#f59e0b" stroke-width="1" rx="4"/>
+      <text x="400" y="530" font-family="Inter, sans-serif" font-size="9" fill="#92400e" text-anchor="middle">💡 Zero Trust : Vérification continue à <strong>chaque requête</strong>, pas seulement au login. Si 1 check échoue → Accès refusé.</text>
+      
+      <defs>
+        <marker id="arrow-zt" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#7c3aed"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">💡</span> Device Posture</div>
+    <div class="block-body">
+      <p><strong>Concept :</strong> Vérifier que le device utilisateur est sécurisé avant d'autoriser l'accès.</p>
+      <p style="margin-top:0.75rem;"><strong>Critères LogiStock :</strong></p>
+      <ul>
+        <li>✅ OS à jour (pas plus de 30 jours)</li>
+        <li>✅ Antivirus actif</li>
+        <li>✅ Firewall activé</li>
+        <li>✅ Chiffrement disque (BitLocker, FileVault)</li>
+        <li>❌ Pas de root/jailbreak</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Charger la politique Zero Trust dans OPA</span>
+curl -X PUT http://localhost:8181/v1/policies/zerotrust \
+  --data-binary @policies/zerotrust.rego
+
+<span class="cm"># Test 1 : Requête complète avec device compliant</span>
+curl -X POST http://localhost:8181/v1/data/logistock/zerotrust/allow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "jwt": {
+        "sub": "alice-uuid",
+        "iss": "http://localhost:8080/realms/logistock",
+        "aud": ["logistock"],
+        "exp": 9999999999,
+        "iat": 1735686000,
+        "auth_time": 1735685400,
+        "amr": ["mfa"],
+        "realm_access": {"roles": ["admin"]}
+      },
+      "device": {
+        "os_updated": true,
+        "antivirus_active": true,
+        "firewall_enabled": true,
+        "rooted": false,
+        "disk_encrypted": true
+      },
+      "location": {"country": "FR"},
+      "time": {"hour": 14},
+      "request": {"ip": "10.0.1.50"},
+      "resource": {"type": "stock", "sensitivity": "high"},
+      "action": "update"
+    }
+  }' | jq
+
+<span class="cm"># Résultat attendu : {"result": true}</span>
+
+<span class="cm"># Test 2 : Device non-compliant (antivirus off)</span>
+curl -X POST http://localhost:8181/v1/data/logistock/zerotrust/allow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "jwt": {...},
+      "device": {
+        "os_updated": true,
+        "antivirus_active": false,
+        "firewall_enabled": true,
+        "rooted": false,
+        "disk_encrypted": true
+      },
+      ...
+    }
+  }' | jq
+
+<span class="cm"># Résultat attendu : {"result": false}</span>
+<span class="cm"># Raison : "Device non-compliant: antivirus=false"</span></pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 3 : Identity-Aware Proxy avec OAuth2 Proxy (45 min)
+  </h3>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">💡</span> Identity-Aware Proxy (IAP)</div>
+    <div class="block-body">
+      <p><strong>Concept :</strong> Toutes les requêtes passent par un proxy qui vérifie l'identité AVANT 
+      d'atteindre l'application backend.</p>
+      <p style="margin-top:0.75rem;"><strong>Flow :</strong></p>
+      <ol>
+        <li>User → OAuth2 Proxy (port 4180)</li>
+        <li>Proxy vérifie JWT avec Keycloak</li>
+        <li>Proxy appelle OPA pour autorisation</li>
+        <li>Si OK → forward à backend (logistock-web)</li>
+        <li>Si KO → 403 Forbidden</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Tester OAuth2 Proxy</span>
+<span class="cm"># 1. Accéder http://localhost:4180</span>
+<span class="cm">#    → Redirection Keycloak login</span>
+
+<span class="cm"># 2. Login Alice (admin)</span>
+<span class="cm">#    → Redirection vers logistock-web</span>
+
+<span class="cm"># 3. Vérifier headers</span>
+curl -H "Authorization: Bearer <token>" http://localhost:4180/headers
+
+<span class="cm"># Headers ajoutés par OAuth2 Proxy :</span>
+<span class="cm"># X-Forwarded-User: alice@logistock.com</span>
+<span class="cm"># X-Forwarded-Email: alice@logistock.com</span>
+<span class="cm"># X-Forwarded-Roles: admin</span></pre>
+  </div>
+
+  <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin:2rem 0 1rem;font-size:1.2rem;">
+    Partie 4 : Compliance Score (30 min)
+  </h3>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copier</button></div>
+    <pre><span class="cm"># Calculer le score de conformité Zero Trust</span>
+curl -X POST http://localhost:8181/v1/data/logistock/zerotrust/compliance_score \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "jwt": {"exp": 9999999999, "iss": "...", "aud": ["logistock"]},
+      "device": {
+        "os_updated": true,
+        "antivirus_active": true,
+        "firewall_enabled": false,
+        "rooted": false,
+        "disk_encrypted": true
+      },
+      "location": {"country": "FR"},
+      "time": {"hour": 14},
+      "request": {"ip": "10.0.1.50"},
+      "resource": {"sensitivity": "medium"}
+    }
+  }' | jq
+
+<span class="cm"># Résultat : {"result": 83}</span>
+<span class="cm"># 5 checks sur 6 passés = 83% compliance</span>
+
+<span class="cm"># Score < 70% → Refuser accès</span>
+<span class="cm"># Score 70-90% → Accès lecture seule</span>
+<span class="cm"># Score > 90% → Accès complet</span></pre>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Livrables TP7</div>
+    <div class="block-body">
+      <ul>
+        <li>✅ Test Zero Trust policy (6 critères)</li>
+        <li>✅ Device posture check (OS, antivirus, firewall)</li>
+        <li>✅ OAuth2 Proxy fonctionnel (IAP)</li>
+        <li>✅ Compliance score calculé</li>
+        <li>✅ Schéma architecture Zero Trust LogiStock</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Résumé Zero Trust LogiStock</div>
+    <div class="block-body">
+      <p><strong>Couche 1 : Authentification</strong></p>
+      <ul>
+        <li>✅ Keycloak OAuth2/OIDC</li>
+        <li>✅ MFA obligatoire</li>
+        <li>✅ JWT avec claims</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Couche 2 : Autorisation</strong></p>
+      <ul>
+        <li>✅ OPA RBAC/ABAC</li>
+        <li>✅ Time/Location-based rules</li>
+        <li>✅ Device posture check</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Couche 3 : Access</strong></p>
+      <ul>
+        <li>✅ Identity-Aware Proxy</li>
+        <li>✅ JIT Access (Vault)</li>
+        <li>✅ Continuous verification</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Couche 4 : Audit</strong></p>
+      <ul>
+        <li>✅ Keycloak events</li>
+        <li>✅ Vault audit logs</li>
+        <li>✅ OPA decisions logs</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- RÉTROSPECTIVE                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="section" id="retro">
+  <div class="section-header">
+    <span class="section-number">RÉTROSPECTIVE</span>
+    <h2>Bilan de l'atelier IAM</h2>
+    <span class="section-duration">50 min</span>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🎯</span> Ce que vous avez appris</div>
+    <div class="block-body">
+      <p><strong>14 heures intensives, 7 TPs, 4 technologies !</strong></p>
+      <p style="margin-top:0.75rem;"><strong>Jour 1 : Identités & Authentification</strong></p>
+      <ul>
+        <li>✅ OAuth2/OIDC (Keycloak)</li>
+        <li>✅ SSO entre services</li>
+        <li>✅ JWT tokens (access, refresh)</li>
+        <li>✅ MFA (TOTP)</li>
+        <li>✅ AWS IAM (users, groups, policies)</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Jour 2 : Autorisations & Zero Trust</strong></p>
+      <ul>
+        <li>✅ RBAC/ABAC (OPA)</li>
+        <li>✅ IAM Roles (AssumeRole)</li>
+        <li>✅ JIT Access (Vault SSH)</li>
+        <li>✅ Zero Trust (Device Posture, IAP)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">📊</span> Synergies avec SECE854 + CRYE857</div>
+    <div class="block-body">
+      <table style="width:100%;border-collapse:collapse;margin-top:1rem;">
+        <tr style="border-bottom:1px solid var(--border);">
+          <th style="text-align:left;padding:0.5rem;">Concept</th>
+          <th style="text-align:left;padding:0.5rem;">SECE854 S3</th>
+          <th style="text-align:left;padding:0.5rem;">CRYE857</th>
+          <th style="text-align:left;padding:0.5rem;">IAME858</th>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.5rem;">Segmentation</td>
+          <td style="padding:0.5rem;">Réseau (DMZ/Internal)</td>
+          <td style="padding:0.5rem;">-</td>
+          <td style="padding:0.5rem;">Logique (RBAC/ABAC)</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.5rem;">Authentification</td>
+          <td style="padding:0.5rem;">SSH bastion</td>
+          <td style="padding:0.5rem;">-</td>
+          <td style="padding:0.5rem;">OAuth2/OIDC/SSO</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.5rem;">Secrets</td>
+          <td style="padding:0.5rem;">Env vars</td>
+          <td style="padding:0.5rem;">Vault dynamic</td>
+          <td style="padding:0.5rem;">OAuth2 secrets in Vault</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.5rem;">Accès privilégiés</td>
+          <td style="padding:0.5rem;">Bastion SSH</td>
+          <td style="padding:0.5rem;">-</td>
+          <td style="padding:0.5rem;">JIT (Vault SSH OTP)</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.5rem;">Zero Trust</td>
+          <td style="padding:0.5rem;">Firewall</td>
+          <td style="padding:0.5rem;">mTLS</td>
+          <td style="padding:0.5rem;">Identity-based policies</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.5rem;">Authentification / Autorisation</td>
+          <td style="padding:0.5rem;">-</td>
+          <td style="padding:0.5rem;">-</td>
+          <td style="padding:0.5rem;">TP1 (Keycloak) + TP2 (AWS IAM) : AuthN puis AuthZ</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">🚀</span> Aller plus loin</div>
+    <div class="block-body">
+      <p><strong>Technologies à explorer :</strong></p>
+      <ul>
+        <li><strong>FreeIPA / Active Directory</strong> : Gestion d'identités entreprise</li>
+        <li><strong>OAuth2 Proxy alternatives</strong> : Pomerium, Ory Oathkeeper</li>
+        <li><strong>OPA alternatives</strong> : Casbin, Cedar (AWS)</li>
+        <li><strong>AWS IAM en prod</strong> : IAM Identity Center (SSO), Control Tower</li>
+        <li><strong>Zero Trust vendors</strong> : Zscaler, Cloudflare Access, Google BeyondCorp</li>
+      </ul>
+      <p style="margin-top:0.75rem;"><strong>Certifications :</strong></p>
+      <ul>
+        <li>AWS Certified Security – Specialty</li>
+        <li>Certified Information Systems Security Professional (CISSP)</li>
+        <li>Vault Associate (HashiCorp)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block checkpoint">
+    <div class="block-header"><span class="block-icon">✅</span> Projet final (optionnel)</div>
+    <div class="block-body">
+      <p><strong>Mission :</strong> Implémenter un système IAM complet pour une PME fictive (50 employés).</p>
+      <p style="margin-top:0.75rem;"><strong>Livrables :</strong></p>
+      <ul>
+        <li>Architecture IAM (diagram)</li>
+        <li>Infrastructure Docker (Keycloak, OPA, Vault)</li>
+        <li>10 utilisateurs, 5 rôles, 3 services</li>
+        <li>Politiques RBAC/ABAC (OPA)</li>
+        <li>JIT Access SSH (Vault)</li>
+        <li>Rapport audit (qui peut faire quoi)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block tip">
+    <div class="block-header"><span class="block-icon">💬</span> Feedback</div>
+    <div class="block-body">
+      <p>Cet atelier vous a plu ? Des suggestions d'amélioration ? Contactez l'équipe pédagogique !</p>
+      <p style="margin-top:0.75rem;"><strong>Merci d'avoir suivi cet atelier IAM LogiStock ! 🎉</strong></p>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- .content -->
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<script>
+// Copy code to clipboard
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'copié !';
+    setTimeout(() => btn.textContent = 'copier', 2000);
+  });
+}
+
+// Progress bar tracking
+document.addEventListener('DOMContentLoaded', () => {
+  const steps = document.querySelectorAll('.progress-step');
+  const sidebarItems = document.querySelectorAll('.sidebar-item');
+  
+  steps.forEach(step => {
+    step.addEventListener('click', () => {
+      const target = step.getAttribute('data-target');
+      document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+  
+  // Active section tracking
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        sidebarItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+  
+  document.querySelectorAll('.section, .hero').forEach(section => observer.observe(section));
+});
+</script>
+
+</body>
+</html>

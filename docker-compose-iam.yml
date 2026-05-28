@@ -1,4 +1,4 @@
-version: '3.8'
+#version: '3.8'
 
 services:
   # ═══════════════════════════════════════════════════════════════
@@ -150,7 +150,7 @@ services:
     container_name: logistock_oauth2_proxy
     environment:
       OAUTH2_PROXY_PROVIDER: oidc
-      OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak:8080/realms/logistock
+      OAUTH2_PROXY_OIDC_ISSUER_URL: "http://host.docker.internal:8080/realms/logistock"
       OAUTH2_PROXY_CLIENT_ID: logistock-proxy
       OAUTH2_PROXY_CLIENT_SECRET: proxy-secret-change-me
       OAUTH2_PROXY_COOKIE_SECRET: "123456789012345678901234567890ab"
@@ -170,7 +170,59 @@ services:
     networks:
       - logistock-net
     restart: on-failure
+    
+  oauth2-proxy-api:
+    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    container_name: oauth2-proxy-api
+    environment:
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: "http://host.docker.internal:8080/realms/logistock"
+      OAUTH2_PROXY_CLIENT_ID: logistock-proxy
+      OAUTH2_PROXY_CLIENT_SECRET: proxy-secret-change-me
+      OAUTH2_PROXY_COOKIE_SECRET: "123456789012345678901234567890ab"   # identique pour tous
+      OAUTH2_PROXY_COOKIE_REFRESH: "1h"
+      OAUTH2_PROXY_COOKIE_EXPIRE: "168h"
+      OAUTH2_PROXY_UPSTREAMS: "http://logistock-api:80"
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4181"
+      OAUTH2_PROXY_REDIRECT_URL: "http://localhost:4181/oauth2/callback"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_PASS_USER_HEADERS: "true"
+      OAUTH2_PROXY_SET_AUTHORIZATION_HEADER: "true"
+    ports:
+      - "4181:4181"
+    depends_on:
+      - keycloak
+    networks:
+      - logistock-net
+    restart: on-failure
 
+  oauth2-proxy-admin:
+    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    container_name: oauth2-proxy-admin
+    environment:
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: "http://host.docker.internal:8080/realms/logistock"
+      OAUTH2_PROXY_CLIENT_ID: logistock-proxy
+      OAUTH2_PROXY_CLIENT_SECRET: proxy-secret-change-me
+      OAUTH2_PROXY_COOKIE_SECRET: "123456789012345678901234567890ab"
+      OAUTH2_PROXY_COOKIE_REFRESH: "1h"
+      OAUTH2_PROXY_COOKIE_EXPIRE: "168h"
+      OAUTH2_PROXY_UPSTREAMS: "http://logistock-admin:80"
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4182"
+      OAUTH2_PROXY_REDIRECT_URL: "http://localhost:4182/oauth2/callback"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_PASS_USER_HEADERS: "true"
+      OAUTH2_PROXY_SET_AUTHORIZATION_HEADER: "true"
+    ports:
+      - "4182:4182"
+    depends_on:
+      - keycloak
+    networks:
+      - logistock-net
+    restart: on-failure
+  
   adminer:
     image: adminer:latest
     container_name: logistock_adminer

@@ -1,0 +1,17 @@
+﻿{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListLogistockBuckets",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::logistock-data"
+    },
+    {
+      "Sid": "ReadLogistockObjects",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::logistock-data/*"
+    }
+  ]
+}
